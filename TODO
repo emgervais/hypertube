@@ -1,0 +1,98 @@
+frontend
+---------------------
+    user
+    ------------
+    login
+    register
+    2oauth
+    logout everywhere
+    preffered language
+    modify profile + profilepicture
+    see other user profile(thourgh username?) no email
+
+    library
+    -----------------
+    search field (from two sources only video streaming)
+    video thumbnail list
+    if search -> sorted per name
+    no serach -> most popular sorted by anything
+    thumbnail have -> name, prod year, imdb rating, cover image, watch or unwached
+    infinite load async
+    filter + sort for name, genre, imdb, prodyear, etc?
+
+    video
+    -------------------------
+    video player, summary, producer, actors, prodyear, length, rating, coverimage
+    comments
+
+
+
+
+
+
+backend
+------------------------
+    user management
+    ------------
+    register with username email full name password
+    omniauth->42->google->fb
+    login username + password
+    forget password email
+    logout
+    token?
+
+    streaming
+    --------------------
+    resolutions
+    MediaStream API
+    if not downloaded launch torrent init stream asap and async
+    after download save on server for reusage. outdated 1 month
+    if english sub available download and available for user
+    if audio dont fit prefered and subtile in language autoamtic download
+
+    API
+    -------------------
+    restful + oauth
+    Authenticated users are allowed to retrieve or update any profiles.
+    Any user can access the website’s « front page », which displays basic inforation about the top movies.
+    A GET request on a movie should return all the relevant information that has been previously collected.
+    Authenticated users can access user comments via /comments/ :id and movie/ :id/comments.
+    They can also post a comment using an appropriate payload.
+
+    POST oauth/token
+        Expects client + secret, returns an auth token
+    GET /users
+        returns a list of users with their id and their username
+    GET /users/:id
+        returns username, email address, profile picture URL
+    PATCH /users/:id
+        Expected data : username, email, password, profile picture URL
+    GET /movies
+        returns the list of movies available on the frontpage, with their id and their name
+    GET /movies/:id
+        return a movie’s name, id, imdB mark, production year, length, available subtitles,
+        number of comments
+    GET /comments
+        returns a list of latest comments which includes comment’s author username, date,
+        content, and id.
+    GET /comments/:id
+        returns comment, author’s username, comment id, date posted
+    PATCH /comments/:id
+        Expected data : comment, username
+    DELETE /comments/:id
+    POST /comments OR POST /movies/:movie_id/comments
+        Expected data : comment, movie_id. Rest is filled by the server
+    More API routes to add, delete movies
+
+
+
+
+
+
+security
+------------------
+xss
+unwanted upload
+sqlinjection
+hashed password
+form validation

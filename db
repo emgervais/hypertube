@@ -1,0 +1,24 @@
+users
+{
+    id,
+    username,
+    first name
+    last name
+    email
+    password
+    profile picture
+    prefered language
+    isOauth
+}
+movies
+{
+    id
+    video
+    name
+    summary
+    rating
+    length
+    audio language
+    cast
+    comments
+}
