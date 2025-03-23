@@ -1,25 +1,24 @@
 import Fastify from "fastify"
 import db from "@fastify/mongodb"
-import userRoutes from './routes/userRoutes.js'
+import userRoutes from "./routes/userRoutes.js"
 import dotenv from 'dotenv'
+import authPlugin from './plugin/auth.js'
 
 dotenv.config()
-
 const fastify = Fastify({
-    logger: true
-  })
-
-fastify.register(db, {
-    forceClose: true,
-    url: process.env.MONGODB_URI
+  logger: {
+    transport: {
+      target: '@fastify/one-line-logger'
+    }
+  }
 })
-
-fastify.register(userRoutes, {prefix: '/user'})
+.register(db, { forceClose: true, url: process.env.MONGODB_URI})
+.register(authPlugin)
+.register(userRoutes, {prefix: '/user'})
 
 async function main() {
   fastify.listen({
-    port: process.env.PORT,
-    host: '0.0.0.0',
+    port: process.env.PORT
   })
 }
 const listeners = ['SIGINT', 'SIGTERM']

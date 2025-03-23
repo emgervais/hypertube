@@ -1,6 +1,11 @@
 {
   "dependencies": {
+    "@fastify/jwt": "^9.1.0",
     "@fastify/mongodb": "^9.0.2",
+    "@fastify/one-line-logger": "^2.0.2",
+    "@fastify/react": "^0.6.0",
+    "@fastify/vite": "^7.0.1",
+    "@vitejs/plugin-react": "^4.3.4",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
@@ -11,11 +16,19 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.12.1",
     "nodemon": "^3.1.9",
-    "react": "^19.0.0"
+    "path": "^0.12.7",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.4.0",
+    "url": "^0.11.4"
   },
   "scripts": {
-    "start": "node --es-module-specifier-resolution=node ./server/index.js",
-    "dev": "nodemon --es-module-specifier-resolution=node ./server/index.js"
+    "start": "node ./index.js",
+    "dev-srv": "nodemon ./src/server/index.js --dev",
+    "dev-front": "vite src/client/",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
   },
   "name": "hypertube",
   "version": "1.0.0",
@@ -24,5 +37,8 @@
   "author": "",
   "license": "ISC",
   "description": "",
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "vite": "^6.2.2"
+  }
 }

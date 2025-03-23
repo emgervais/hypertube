@@ -5,7 +5,7 @@ base_url = "http://localhost:8080"
 
 def make_request(url):
     response = requests.post(base_url+url, json={
-        "username": "test",
+        "username": "testa",
         "password": "test",
         "email": "test",
         "lastname": "test",
