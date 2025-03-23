@@ -9,6 +9,7 @@ users:
     profile picture
     prefered language
     isOauth
+    movie
 }
 movies
 {

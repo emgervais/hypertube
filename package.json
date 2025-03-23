@@ -2,18 +2,20 @@
   "dependencies": {
     "@fastify/mongodb": "^9.0.2",
     "bcryptjs": "^3.0.2",
+    "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
     "fastify-auth": "^1.1.0",
     "fastify-cli": "^7.3.0",
     "fastify-plugin": "^5.0.1",
+    "fluent-json-schema": "^5.0.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.12.1",
     "nodemon": "^3.1.9",
     "react": "^19.0.0"
   },
   "scripts": {
-    "start": "node --es-module-specifier-resolution=node ./src/index.js",
-    "dev": "nodemon --es-module-specifier-resolution=node ./src/index.js"
+    "start": "node --es-module-specifier-resolution=node ./server/index.js",
+    "dev": "nodemon --es-module-specifier-resolution=node ./server/index.js"
   },
   "name": "hypertube",
   "version": "1.0.0",
