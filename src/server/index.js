@@ -3,6 +3,7 @@ import db from "@fastify/mongodb"
 import userRoutes from "./routes/userRoutes.js"
 import dotenv from 'dotenv'
 import authPlugin from './plugin/auth.js'
+import cors from '@fastify/cors'
 
 dotenv.config()
 const fastify = Fastify({
@@ -12,6 +13,7 @@ const fastify = Fastify({
     }
   }
 })
+.register(cors, { origin: '*' })
 .register(db, { forceClose: true, url: process.env.MONGODB_URI})
 .register(authPlugin)
 .register(userRoutes, {prefix: '/user'})
