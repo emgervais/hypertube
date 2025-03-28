@@ -56,10 +56,9 @@ async function login(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
         if(await collection.findOne({username: req.body.username}) || await collection.findOne({email: req.body.email})) {
-            reply.status(409).send('Username or email is already assigned to an account.');
+            reply.status(409).send({message: 'You have entered an invalid username or password.'});
             return;
         }
-        const user = await collection.insertOne({...req.body, picture: "", language: "en"});
         reply.status(200).send(user);
     } catch(e) {
         reply.status(500).send(e);

@@ -1,6 +1,35 @@
 import { NavLink } from "react-router-dom"
+import { useState } from "react";
+import validateRegister from "../auth/register.jsx"
+import Error from "./alert.jsx";
 
 export default function Register() {
+  const [errors, setErrors] = useState('');
+  const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{7,}$/;
+
+    const handleSubmit = async (event) => {
+      event.preventDefault()
+      setErrors('')
+      const data = {
+        username: event.target.username.value,
+        email: event.target.email.value,
+        password: event.target.password.value,
+        name: event.target.name.value,
+        surname: event.target.surname.value
+      }
+      if (passRegex.test(data.password)) {
+        const response = await fetch('http://localhost:8080/user/register', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        })
+        const res = await response.text();
+        if(!response.ok)
+          setErrors(res.message)
+        debugger;
+      }
+      else
+        setErrors('Please enter a password of 7 char, atleast one number.');
+    }
     return (
       <>
         <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
@@ -11,7 +40,8 @@ export default function Register() {
           </div>
   
           <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-            <form action="#" method="POST" className="space-y-6">
+            {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
+            <form onSubmit={handleSubmit} className="space-y-6">
             <div >
                 <label htmlFor="username" className="block text-sm/6 font-medium text-white-900 text-left">
                   Username
@@ -37,7 +67,7 @@ export default function Register() {
                     id="email"
                     name="email"
                     type="email"
-                    required
+                    required 
                     autoComplete="email"
                     className="block w-full rounded-md bg-gray-800 px-3 py-1.5 text-base text-white-900 outline-1 -outline-offset-1 outline-gray-600 placeholder:text-white-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
                   />
@@ -103,7 +133,7 @@ export default function Register() {
   
             <p className="mt-10 text-center text-sm/6 text-gray-500">
               Already have an account?{' '}
-              <NavLink to="/" className="font-semibold text-indigo-600 hover:text-indigo-500">
+              <NavLink to="/login" className="font-semibold text-indigo-600 hover:text-indigo-500">
                 Login
               </NavLink>
             </p>

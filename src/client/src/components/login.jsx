@@ -1,19 +1,21 @@
 import { NavLink } from "react-router-dom"
-import login from "../auth/login.jsx"
+import login from "../auth/register.jsx"
 import { useState } from "react";
+import Error from "./alert.jsx";
 
 export default function Login() {
-  const [errors, setErrors] = useState([]);
+  const [errors, setErrors] = useState('');
 
   const handleSubmit = async (formData) => {
     const {username, password} = formData.values()
-    const response = await fetch('http://127.0.0.1:8080/user/', {
+    const response = await fetch('http://127.0.0.1:8080/user/login', {
       method: 'POST',
       body: JSON.stringify({username: username, password: password})
     })
-    const res = await response.json()
+    const res = await response.json();
+    if(!response.ok)
+      setErrors(res.message)
   };
-
     return (
       <>
         <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
@@ -24,7 +26,7 @@ export default function Login() {
           </div>
   
           <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-          {errors && <div className="error">{errors}</div>}
+          {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
             <form action={handleSubmit} className="space-y-6">
               <div >
                 <label htmlFor="username" className="block text-sm/6 font-medium text-white-900 text-left">
