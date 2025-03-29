@@ -1,6 +1,5 @@
 import { NavLink } from "react-router-dom"
 import { useState } from "react";
-import validateRegister from "../auth/register.jsx"
 import Error from "./alert.jsx";
 
 export default function Register() {
@@ -20,26 +19,28 @@ export default function Register() {
       if (passRegex.test(data.password)) {
         const response = await fetch('http://localhost:8080/user/register', {
           method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify(data)
         })
-        const res = await response.text();
+        const res = await response.json();
         if(!response.ok)
-          setErrors(res.message)
-        debugger;
+          setErrors(res.message);
       }
       else
         setErrors('Please enter a password of 7 char, atleast one number.');
     }
     return (
       <>
-        <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
-          <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+        <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8" style={{width: '50vw'}}>
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
             <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white-900">
               Sign up
             </h2>
           </div>
   
-          <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+          <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
             {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
             <form onSubmit={handleSubmit} className="space-y-6">
             <div >

@@ -1,3 +1,5 @@
+import bcrypt from 'bcrypt'
+const SALT_ROUNDS = 10
 
 async function getUsers(req, reply) {
     try {
@@ -29,6 +31,16 @@ async function updateUser(req, reply) {
         reply.status(500).send(e);
     }
 }
+async function deleteUser(req, reply) {
+    try {
+        const collection = this.mongo.db.collection('users');
+        const id = new this.mongo.ObjectId(req.params.id);
+        await collection.deleteOne({_id: id});
+        reply.status(204);
+    } catch(e) {
+        reply.status(500).send(e);
+    }    
+}
 async function register(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -36,30 +48,34 @@ async function register(req, reply) {
             reply.status(409).send('Username or email is already assigned to an account.');
             return;
         }
-        const user = await collection.insertOne({...req.body, picture: "default.png", language: "en", jwtToken: "", resetToken: ""});
-        reply.status(200).send(user);
+        const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
+        const user = await collection.insertOne({...req.body, password: hash, picture: "default.png", language: "en", jwtToken: "", resetToken: ""});
+        reply.status(201).send(user);
     } catch(e) {
         reply.status(500).send(e);
     }  
 }
-async function deleteUser(req, reply) {
-    try {
-        const collection = this.mongo.db.collection('users');
-        const id = new this.mongo.ObjectId(req.params.id);
-        await collection.findOneAndDelete(id);
-        reply.status(204);
-    } catch(e) {
-        reply.status(500).send(e);
-    }    
-}
 async function login(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
-        if(await collection.findOne({username: req.body.username}) || await collection.findOne({email: req.body.email})) {
+        const user = await collection.findOne({username: req.body.username})
+        if(!user || !bcrypt.compare(req.body.password, user.password)) {
             reply.status(409).send({message: 'You have entered an invalid username or password.'});
             return;
         }
-        reply.status(200).send(user);
+        const payload = {
+            id: user._id,
+            username: user.username,
+        }
+        const refresh = req.jwt.sign(payload, {expiresIn: '72h'})
+        const token = req.jwt.sign(payload, {expiresIn: '2h'})
+        reply.setCookie('refresh_token', refresh, {
+            path: '/',
+            httpOnly: true,
+            secure: true,
+            maxAge: 600_000
+        })
+        reply.status(200).send({username: user.username, accessToken: token});
     } catch(e) {
         reply.status(500).send(e);
     }  

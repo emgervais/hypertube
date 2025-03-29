@@ -1,33 +1,45 @@
 import { NavLink } from "react-router-dom"
-import login from "../auth/register.jsx"
 import { useState } from "react";
 import Error from "./alert.jsx";
+import { useAuth } from '../components/authContext.jsx'
 
 export default function Login() {
   const [errors, setErrors] = useState('');
+  const { login } = useAuth();
 
-  const handleSubmit = async (formData) => {
-    const {username, password} = formData.values()
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setErrors('')
+    const data = {
+      username: event.target.username.value,
+      password: event.target.password.value
+    }
     const response = await fetch('http://127.0.0.1:8080/user/login', {
       method: 'POST',
-      body: JSON.stringify({username: username, password: password})
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify(data)
     })
     const res = await response.json();
     if(!response.ok)
       setErrors(res.message)
+    else if (res.accessToken)
+      login(res.accessToken)
   };
     return (
       <>
-        <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8">
-          <div className="sm:mx-auto sm:w-full sm:max-w-sm">
+        <div className="flex min-h-full flex-1 flex-col justify-center px-6 py-12 lg:px-8" style={{width: '50vw'}}>
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
             <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white-900">
               Sign in
             </h2>
           </div>
   
-          <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+          <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
           {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
-            <form action={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
               <div >
                 <label htmlFor="username" className="block text-sm/6 font-medium text-white-900 text-left">
                   Username

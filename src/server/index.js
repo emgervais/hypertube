@@ -4,6 +4,8 @@ import userRoutes from "./routes/userRoutes.js"
 import dotenv from 'dotenv'
 import authPlugin from './plugin/auth.js'
 import cors from '@fastify/cors'
+import fjwt from '@fastify/jwt'
+import fCookie from '@fastify/cookie'
 
 dotenv.config()
 const fastify = Fastify({
@@ -13,9 +15,17 @@ const fastify = Fastify({
     }
   }
 })
-.register(cors, { origin: '*' })
+.register(fjwt, { secret: process.env.JWT_SECRET})
+.register(cors, { origin: '*', credentials: true })
 .register(db, { forceClose: true, url: process.env.MONGODB_URI})
-.register(authPlugin)
+.addHook('preHandler', (req, res, next) => {
+  req.jwt = fastify.jwt
+  return next()
+})
+.register(fCookie, {
+  secret: process.env.COOKIE,
+  hook: 'preHandler',
+})
 .register(userRoutes, {prefix: '/user'})
 
 async function main() {
