@@ -9,6 +9,7 @@ async function userRoutes (fastify, options) {
     fastify.post('/logout', userController.logout)
     fastify.put('/:id', userController.updateUser)
     fastify.get('/delete/:id', userController.deleteUser)
+    fastify.post('/refresh', userController.refresh)
 }
 
 export default userRoutes;

@@ -1,4 +1,5 @@
 import bcrypt from 'bcrypt'
+import { decode } from 'jsonwebtoken';
 const SALT_ROUNDS = 10
 
 async function getUsers(req, reply) {
@@ -67,13 +68,15 @@ async function login(req, reply) {
             id: user._id,
             username: user.username,
         }
-        const refresh = req.jwt.sign(payload, {expiresIn: '72h'})
+        const refresh = req.jwt.sign(payload, {expiresIn: '7d'})
         const token = req.jwt.sign(payload, {expiresIn: '2h'})
-        reply.setCookie('refresh_token', refresh, {
+        reply.setCookie('refreshToken', refresh, {
             path: '/',
             httpOnly: true,
-            secure: true,
-            maxAge: 600_000
+            secure: false,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60,
+            domain: '127.0.0.1'
         })
         reply.status(200).send({username: user.username, accessToken: token});
     } catch(e) {
@@ -93,4 +96,27 @@ async function logout(req, reply) {
         reply.status(500).send(e);
     }  
 }
-export default {getUser, deleteUser, register, updateUser, getUsers, login, logout}
+async function refresh(req, reply) {
+    const { refreshToken }  = req.cookies;
+    console.log(req.cookies)
+
+    if (!refreshToken)
+        return reply.status(401).send({ error: 'No refresh token'})
+    try {
+        const decoded = req.jwt.verify(refreshToken)
+        const accessToken = req.jwt.sign({id: decoded.id, username: decoded.username}, {expiresIn: '2h'})
+        const refresh = req.jwt.sign({id: decoded.id, username: decoded.username}, {expiresIn: '72h'})
+        reply.setCookie('refreshToken', refresh, {
+            path: '/',
+            httpOnly: true,
+            secure: false,
+            sameSite: 'lax',
+            maxAge: 7 * 24 * 60 * 60,
+            domain: '127.0.0.1'
+        })
+        reply.send({accessToken: accessToken})
+    } catch(e) {
+        reply.status(403).send({ error: 'invalid refreshToken'})
+    }
+}
+export default {getUser, deleteUser, register, updateUser, getUsers, login, logout, refresh}

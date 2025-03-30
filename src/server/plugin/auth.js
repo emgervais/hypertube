@@ -1,16 +1,19 @@
-import fp from "fastify-plugin"
-import jwt from "@fastify/jwt"
 
-export default fp(async function(fastify, opts) {
-  fastify.register(jwt, {
-    secret: process.env.JWT_SECRET
-  })
 
-  fastify.decorate("authenticate", async function(request, reply) {
-    try {
-      await request.jwtVerify()
-    } catch (err) {
-      reply.code(401).send({ error: "Unauthorized access "})
+  export default async function auth(req, reply) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return reply.status(401).send({ error: 'No header provided' });
     }
-  })
-})
+
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return reply.status(401).send({ error: 'No token provided' })
+    }
+    try {
+      const decoded = req.jwt.verify(token)
+      req.user = decoded
+    } catch(e) {
+      return reply.status(401).send({ error: 'Invalid token' })
+    }
+  }
