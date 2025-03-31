@@ -1,6 +1,25 @@
 import bcrypt from 'bcrypt'
 import { decode } from 'jsonwebtoken';
+import crypto from 'crypto'
 const SALT_ROUNDS = 10
+
+async function setToken(id, username, reply, req) {
+    const payload = {
+        id: id,
+        username: username,
+    }
+    const refresh = req.jwt.sign(payload, {expiresIn: '7d'})
+    const token = req.jwt.sign(payload, {expiresIn: '2h'})
+    reply.setCookie('refreshToken', refresh, {
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60,
+        domain: '127.0.0.1'
+    })
+    return token
+}
 
 async function getUsers(req, reply) {
     try {
@@ -12,26 +31,6 @@ async function getUsers(req, reply) {
     }
 }
 
-async function getUser(req, reply) {
-    try {
-        const collection = this.mongo.db.collection('users');
-        const id = new this.mongo.ObjectId(req.params.id);
-        const user = await collection.findOne(id);
-        reply.status(200).send(user);
-    } catch(e) {
-        reply.status(500).send(e);
-    }
-}
-async function updateUser(req, reply) {
-    try {
-        const collection = this.mongo.db.collection('users');
-        const id = new this.mongo.ObjectId(req.params.id);
-        const user = await collection.findOneAndUpdate(id, req.body);
-        reply.status(200).send(user);
-    } catch(e) {
-        reply.status(500).send(e);
-    }
-}
 async function deleteUser(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -46,12 +45,12 @@ async function register(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
         if(await collection.findOne({username: req.body.username}) || await collection.findOne({email: req.body.email})) {
-            reply.status(409).send('Username or email is already assigned to an account.');
+            reply.status(409).send({error: 'Username or email is already assigned to an account.'});
             return;
         }
         const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
-        const user = await collection.insertOne({...req.body, password: hash, picture: "default.png", language: "en", jwtToken: "", resetToken: ""});
-        reply.status(201).send(user);
+        const user = await collection.insertOne({...req.body, password: hash, picture: "default.png", language: "en", resetToken: null, resetExpire: null});
+        login({body: {username: user.username, password: req.body.password}}, reply)
     } catch(e) {
         reply.status(500).send(e);
     }  
@@ -61,23 +60,10 @@ async function login(req, reply) {
         const collection = this.mongo.db.collection('users');
         const user = await collection.findOne({username: req.body.username})
         if(!user || !bcrypt.compare(req.body.password, user.password)) {
-            reply.status(409).send({message: 'You have entered an invalid username or password.'});
+            reply.status(409).send({error: 'You have entered an invalid username or password.'});
             return;
         }
-        const payload = {
-            id: user._id,
-            username: user.username,
-        }
-        const refresh = req.jwt.sign(payload, {expiresIn: '7d'})
-        const token = req.jwt.sign(payload, {expiresIn: '2h'})
-        reply.setCookie('refreshToken', refresh, {
-            path: '/',
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60,
-            domain: '127.0.0.1'
-        })
+        const token = await setToken(user._id, user.username, reply, req);
         reply.status(200).send({username: user.username, accessToken: token});
     } catch(e) {
         reply.status(500).send(e);
@@ -116,7 +102,47 @@ async function refresh(req, reply) {
         })
         reply.send({accessToken: accessToken})
     } catch(e) {
+        console.log(e)
         reply.status(403).send({ error: 'invalid refreshToken'})
     }
 }
-export default {getUser, deleteUser, register, updateUser, getUsers, login, logout, refresh}
+
+async function forgot(req, reply) {
+    const email = req.body.email;
+    try {
+        const collection = this.mongo.db.collection('users');
+        if(!await collection.findOne({email: email}))
+            return reply.status(200).send({message: 'If the email is correct, the mail as been sent'});
+        const token = crypto.randomBytes(4).toString('hex');
+        const expire = Date.now() + 5 * 60 * 1000;
+        await collection.findOneAndUpdate({"email": email}, {$set: {"resetToken": token, "resetExpire": expire}});
+        await this.mailer.sendMail({
+            to: email,
+            subject: 'Password reset',
+            text: `Your confirmation code is ${token}`
+        })
+        reply.status(200).send({message: 'If the email is correct, the mail has been sent'});
+    } catch(e) {
+        console.log(e)
+        reply.status(500).send({error: 'Something went wrong'});
+    }
+}
+
+async function reset(req, reply) {
+    try {
+        const collection = this.mongo.db.collection('users');
+        const user = await collection.findOne({resetToken: req.body.token})
+        if(!user || user.expire < Date.now())
+            return reply.status(401).send({error: "Wrong reset token or expired token. Please resend an email."})
+        if(!req.body.password) {
+            return reply.status(200).send({message: "Token is valid"})
+        }
+        const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
+        await collection.findOneAndUpdate({"resetToken": req.body.token}, {$set: {password: hash,"resetToken": null, "resetExpire": null}});
+        reply.status(200).send({message: "Password has been changed"})
+    } catch(e) {
+        console.log(e)
+        reply.status(500).send({error: "Server failure, please try again."})
+    }
+}
+export default {deleteUser, register, getUsers, login, logout, refresh, forgot, reset}

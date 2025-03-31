@@ -1,11 +1,12 @@
-import { NavLink } from "react-router-dom"
+import { useNavigate, NavLink } from "react-router-dom"
 import { useState } from "react";
-import Error from "./alert.jsx";
-import { useAuth } from '../components/authContext.jsx'
+import Error from "../alert.jsx";
+import { useAuth } from './authContext.jsx'
 
 export default function Login() {
   const [errors, setErrors] = useState('');
   const { login } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -14,19 +15,22 @@ export default function Login() {
       username: event.target.username.value,
       password: event.target.password.value
     }
+
     const response = await fetch('http://127.0.0.1:8080/user/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      credentials: 'include',
       body: JSON.stringify(data)
     })
     const res = await response.json();
     if(!response.ok)
-      setErrors(res.message)
-    else if (res.accessToken)
-      login(res.accessToken)
+      setErrors(res.error)
+    else {
+        login(res.accessToken)
+        navigate('/')
+    }
+
   };
     return (
       <>
@@ -62,9 +66,9 @@ export default function Login() {
                     Password
                   </label>
                   <div className="text-sm">
-                    <a href="#" className="font-semibold text-indigo-600 hover:text-indigo-500">
-                      Forgot password?
-                    </a>
+                      <NavLink to="/forgotPassword" className="font-semibold text-indigo-600 hover:text-indigo-500">
+                        Forgot password?
+                      </NavLink>
                   </div>
                 </div>
                 <div className="mt-2">

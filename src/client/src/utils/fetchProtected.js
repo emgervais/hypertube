@@ -15,7 +15,7 @@ export const createAuthenticatedFetcher = (getToken, login, navigate) => {
       login(data.accessToken);
       return data.accessToken;
     } else {
-    //   navigate('/login');
+      navigate('/login');
       return null;
     }
   };

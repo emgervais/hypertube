@@ -6,6 +6,8 @@ import auth from './plugin/auth.js'
 import cors from '@fastify/cors'
 import fjwt from '@fastify/jwt'
 import fCookie from '@fastify/cookie'
+// import mailerConfig from "./plugin/mailer.js"
+import mailerPlugin from 'fastify-mailer'
 
 dotenv.config()
 const fastify = Fastify({
@@ -25,11 +27,21 @@ const fastify = Fastify({
   maxAge: 86900
 })
 .register(db, { forceClose: true, url: process.env.MONGODB_URI})
+.register(mailerPlugin, {
+  transport: {
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: {
+          user: process.env.MAIL_USER,
+          pass: process.env.MAIL_PASS
+      }
+  },
+  defaults: {
+      from: 'hypertube@mail.com'
+  }
+})
 .addHook('preHandler', (req, res, next) => {
-  console.log('Request URL:', req.url);
-  console.log('Origin:', req.headers.origin);
-  console.log('Cookie header:', req.headers.cookie);
-  console.log('Parsed cookies:', req.cookies);
   req.jwt = fastify.jwt
   return next()
 })

@@ -1,13 +1,12 @@
-import { NavLink } from "react-router-dom"
+import { NavLink, useNavigate } from "react-router-dom"
 import { useState } from "react";
-import Error from "./alert.jsx";
+import Error from "../alert.jsx";
 import {useAuth} from "./authContext.jsx"
-import { useFetchWithAuth } from "../utils/fetchProtected.js";
 
 export default function Register() {
-  const fetchWithAuth = useFetchWithAuth();
   const [errors, setErrors] = useState('');
-  const { getToken } = useAuth();
+  const { login } = useAuth();
+  const navigate = useNavigate();
   const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{7,}$/;
 
     const handleSubmit = async (event) => {
@@ -21,22 +20,20 @@ export default function Register() {
         surname: event.target.surname.value
       }
       if (passRegex.test(data.password)) {
-        // const response = await fetch('http://localhost:8080/user/register', {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json'
-        //   },
-        //   body: JSON.stringify(data)
-        // })
-        console.log(await getToken())
-        const response = await fetchWithAuth('/user/67df4c754bda341b4dcf9ff5', {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-            }
+        const response = await fetch('http://localhost:8080/user/register', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
         })
         const res = await response.json();
-        console.log(res)
+        if(response.status === 409)
+          setErrors(res.error)
+        else {
+            login(res.accessToken)
+            navigate('/')
+        }
       }
       else
         setErrors('Please enter a password of 7 char, atleast one number.');

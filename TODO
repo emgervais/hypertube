@@ -2,8 +2,8 @@ frontend
 ---------------------
     user
     ------------
-    login
-    register
+    <!-- login -->
+    <!-- register -->
     2oauth
     logout everywhere
     preffered language
@@ -34,12 +34,12 @@ backend
 ------------------------
     user management
     ------------
-    register with username email full name password
+    <!-- register with username email full name password -->
     omniauth->42->google->fb
-    login username + password
-    forget password email
+    <!-- login username + password -->
+    <!-- forget password email -->
     logout
-    token?
+    <!-- token? -->
 
     streaming
     --------------------
