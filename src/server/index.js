@@ -6,8 +6,8 @@ import auth from './plugin/auth.js'
 import cors from '@fastify/cors'
 import fjwt from '@fastify/jwt'
 import fCookie from '@fastify/cookie'
-// import mailerConfig from "./plugin/mailer.js"
 import mailerPlugin from 'fastify-mailer'
+import oauthPlugin from '@fastify/oauth2'
 
 dotenv.config()
 const fastify = Fastify({
@@ -41,10 +41,6 @@ const fastify = Fastify({
       from: 'hypertube@mail.com'
   }
 })
-.addHook('preHandler', (req, res, next) => {
-  req.jwt = fastify.jwt
-  return next()
-})
 .register(fCookie, {
   secret: process.env.COOKIE,
   hook: 'preHandler',
@@ -55,6 +51,23 @@ const fastify = Fastify({
     path: '/'
   }
 })
+.register(oauthPlugin, {
+  name: 'googleOAuth2',
+  scope: ['profile', 'email'],
+  credentials: {
+    client: {
+      id: process.env.GOOGLE_ID,
+      secret: process.env.GOOGLE_SECRET
+    },
+    auth: oauthPlugin.GOOGLE_CONFIGURATION
+  },
+  startRedirectPath: '/auth/google',
+  callbackUri: '/google/callback'
+})
+.addHook('preHandler', (req, res, next) => {
+  req.jwt = fastify.jwt
+  return next()
+})
 .register(userRoutes, {prefix: '/user'})
 .decorate('authenticate', auth)
 async function main() {
@@ -62,6 +75,28 @@ async function main() {
     port: process.env.PORT
   })
 }
+
+// fastify.get('/login/google', {}, (req, reply) => {
+//   fastify.googleOAuth2.generateAuthorizationUri(
+//     req,
+//     reply,
+//     (err, authorizationEndpoint) => {
+//      if (err) console.error(err)
+//      reply.redirect(authorizationEndpoint)
+//     }
+//   );
+// });
+
+
+
+
+
+
+
+
+
+
+
 const listeners = ['SIGINT', 'SIGTERM']
 listeners.forEach((signal) => {
   process.on(signal, async () => {

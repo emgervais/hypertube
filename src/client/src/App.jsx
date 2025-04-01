@@ -7,6 +7,7 @@ import Home from './components/home.jsx'
 import ForgotPassword from './components/auth/forgotPassword.jsx';
 import ResetPassword from './components/auth/resetPassword.jsx'
 import ConfirmResetToken from './components/auth/confirmResetToken.jsx'
+import Oauth from './components/auth/Oauth.jsx'
 import {AuthProvider } from './components/auth/authContext.jsx'
 import { BrowserRouter } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
@@ -23,6 +24,7 @@ function App() {
             <Route path='/resetPassword' element={<ResetPassword />}/>
             <Route path='/forgotPassword' element={<ForgotPassword />}/>
             <Route path='/confirmResetToken' element={<ConfirmResetToken/>}/>
+            <Route path='/oauth' element={<Oauth/>}/>
             <Route path="*" element={<NoMatch/ >} />
         </Routes>
       </BrowserRouter>
