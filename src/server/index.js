@@ -19,7 +19,7 @@ const fastify = Fastify({
 })
 .register(fjwt, { secret: process.env.JWT_SECRET})
 .register(cors, { 
-  origin: ['http://127.0.0.1:5173', 'http://localhost:5173'], 
+  origin: ['http://127.0.0.1:5173', 'http://127.0.0.1:5173'], 
   credentials: true, 
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE", 
   allowedHeaders: "Content-Type,Authorization",
@@ -53,7 +53,7 @@ const fastify = Fastify({
 })
 .register(oauthPlugin, {
   name: 'googleOAuth2',
-  scope: ['profile', 'email'],
+  scope: 'openid profile email',
   credentials: {
     client: {
       id: process.env.GOOGLE_ID,
@@ -62,7 +62,7 @@ const fastify = Fastify({
     auth: oauthPlugin.GOOGLE_CONFIGURATION
   },
   startRedirectPath: '/auth/google',
-  callbackUri: '/google/callback'
+  callbackUri: 'http://127.0.0.1:8080/user/google/callback'
 })
 .addHook('preHandler', (req, res, next) => {
   req.jwt = fastify.jwt
@@ -70,32 +70,12 @@ const fastify = Fastify({
 })
 .register(userRoutes, {prefix: '/user'})
 .decorate('authenticate', auth)
+
 async function main() {
   fastify.listen({
     port: process.env.PORT
   })
 }
-
-// fastify.get('/login/google', {}, (req, reply) => {
-//   fastify.googleOAuth2.generateAuthorizationUri(
-//     req,
-//     reply,
-//     (err, authorizationEndpoint) => {
-//      if (err) console.error(err)
-//      reply.redirect(authorizationEndpoint)
-//     }
-//   );
-// });
-
-
-
-
-
-
-
-
-
-
 
 const listeners = ['SIGINT', 'SIGTERM']
 listeners.forEach((signal) => {

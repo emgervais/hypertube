@@ -145,4 +145,29 @@ async function reset(req, reply) {
         reply.status(500).send({error: "Server failure, please try again."})
     }
 }
-export default {deleteUser, register, getUsers, login, logout, refresh, forgot, reset}
+
+async function oauth42(req, reply) {
+    return reply.redirect('https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-5f32f1a996105b3d288e373bff3db69959eb2dc8dac65f9b1fadd613af4acf61&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Foauth&response_type=code')
+}
+
+async function oauth42Callback(req, reply) {
+    return reply.redirect('https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-5f32f1a996105b3d288e373bff3db69959eb2dc8dac65f9b1fadd613af4acf61&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Foauth&response_type=code')
+}
+
+async function oauthGoogleCallback (req, reply) {
+    try {
+      const tokenResponse = await this.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(req);
+      const accessToken = tokenResponse.token.access_token;
+      
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const userInfo = await userInfoResponse.json();
+      console.log(userInfo)
+      return reply.redirect(`http://127.0.0.1:5173/oauth?token=${accessToken}`);
+    } catch (error) {
+      console.error('OAuth Error:', error);
+      return reply.redirect('http://127.0.0.1:5173/login?error=OAuthFailed');
+    }
+  }
+export default {deleteUser, register, getUsers, login, logout, refresh, forgot, reset, oauth42, oauthGoogleCallback, oauth42Callback}

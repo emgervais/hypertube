@@ -104,7 +104,7 @@ export default function Login() {
 
   <div className="mt-6 grid grid-cols-2 gap-4">
     <a
-      href="https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-5f32f1a996105b3d288e373bff3db69959eb2dc8dac65f9b1fadd613af4acf61&redirect_uri=http%3A%2F%2F127.0.0.1%3A5137%2Foauth&response_type=code"
+      href="http://127.0.0.1:8080/user/auth/42"
       className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700"
     >
       <svg className="h-5 w-5" viewBox="0 -200 960 960" fill="currentColor">

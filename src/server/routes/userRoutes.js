@@ -11,6 +11,9 @@ async function userRoutes (fastify, options) {
     fastify.post('/refresh', userController.refresh)
     fastify.post('/forgotPassword', userController.forgot)
     fastify.post('/resetPassword', userController.reset)
+    fastify.get('/42/callback', userController.oauth42Callback)
+    fastify.get('/auth/42', userController.oauth42)
+    fastify.get('/google/callback', userController.oauthGoogleCallback)
 }
 
 export default userRoutes;
