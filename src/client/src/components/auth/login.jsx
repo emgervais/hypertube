@@ -16,7 +16,7 @@ export default function Login() {
       password: event.target.password.value
     }
 
-    const response = await fetch('http://127.0.0.1:8080/user/login', {
+    const response = await fetch('http://127.0.0.1:8080/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -104,7 +104,7 @@ export default function Login() {
 
   <div className="mt-6 grid grid-cols-2 gap-4">
     <a
-      href="http://127.0.0.1:8080/user/auth/42"
+      href="http://127.0.0.1:8080/auth/42"
       className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700"
     >
       <svg className="h-5 w-5" viewBox="0 -200 960 960" fill="currentColor">

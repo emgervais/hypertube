@@ -1,6 +1,7 @@
 import Fastify from "fastify"
 import db from "@fastify/mongodb"
 import userRoutes from "./routes/userRoutes.js"
+import authRoutes from "./routes/authRoutes.js"
 import dotenv from 'dotenv'
 import auth from './plugin/auth.js'
 import cors from '@fastify/cors'
@@ -62,12 +63,13 @@ const fastify = Fastify({
     auth: oauthPlugin.GOOGLE_CONFIGURATION
   },
   startRedirectPath: '/auth/google',
-  callbackUri: 'http://127.0.0.1:8080/user/google/callback'
+  callbackUri: 'http://127.0.0.1:8080/auth/google/callback'
 })
 .addHook('preHandler', (req, res, next) => {
   req.jwt = fastify.jwt
   return next()
 })
+.register(authRoutes, {prefix: '/auth'})
 .register(userRoutes, {prefix: '/user'})
 .decorate('authenticate', auth)
 

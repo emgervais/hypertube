@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../components/authContext.jsx';
+import { useAuth } from '../components/auth/authContext.jsx';
 
 const API_URL = "http://127.0.0.1:8080";
 
 export const createAuthenticatedFetcher = (getToken, login, navigate) => {
   const refreshToken = async () => {
-    const res = await fetch(`${API_URL}/user/refresh`, {
+    const res = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
       credentials: 'include'
     });
@@ -22,7 +22,6 @@ export const createAuthenticatedFetcher = (getToken, login, navigate) => {
 
   const fetchWithAuth = async (url, options = {}) => {
     let accessToken = await getToken();
-
     const res = await fetch(`${API_URL}${url}`, {
       ...options,
       headers: {

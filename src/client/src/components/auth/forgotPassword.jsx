@@ -12,7 +12,7 @@ export default function ForgotPassword() {
     const data = {
       email: event.target.email.value,
     }
-    const response = await fetch('http://127.0.0.1:8080/user/forgotPassword', {
+    const response = await fetch('http://127.0.0.1:8080/auth/forgotPassword', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
