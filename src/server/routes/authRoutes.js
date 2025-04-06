@@ -4,6 +4,7 @@ import authController from "../controllers/authController.js"
 async function authRoutes (fastify, options) {
     fastify.post('/register', { schema: registerValidation }, authController.register)
     fastify.post('/login', { schema: loginValidation }, authController.login)
+    fastify.get('/logout', authController.logout)
     fastify.post('/refresh', authController.refresh)
     fastify.post('/forgotPassword', authController.forgot)
     fastify.post('/resetPassword', authController.reset)

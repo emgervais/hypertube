@@ -20,7 +20,7 @@ const fastify = Fastify({
 })
 .register(fjwt, { secret: process.env.JWT_SECRET})
 .register(cors, { 
-  origin: ['http://127.0.0.1:5173', 'http://127.0.0.1:5173'], 
+  origin: ['http://127.0.0.1:5173'], 
   credentials: true, 
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE", 
   allowedHeaders: "Content-Type,Authorization",

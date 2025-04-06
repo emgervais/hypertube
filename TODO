@@ -4,8 +4,8 @@ frontend
     ------------
     <!-- login -->
     <!-- register -->
-    2oauth
-    logout everywhere
+    <!-- 2oauth -->
+    <!-- logout everywhere -->
     preffered language
     modify profile + profilepicture
     see other user profile(thourgh username?) no email
@@ -35,11 +35,12 @@ backend
     user management
     ------------
     <!-- register with username email full name password -->
-    omniauth->42->google->fb
+    <!-- omniauth->42->google->fb -->
     <!-- login username + password -->
     <!-- forget password email -->
-    logout
+    <!-- logout -->
     <!-- token? -->
+    valid password
 
     streaming
     --------------------

@@ -12,13 +12,14 @@ async function setToken(id, username, reply, req) {
     }
     const refresh = req.jwt.sign(payload, {expiresIn: '7d'})
     const token = req.jwt.sign(payload, {expiresIn: '2h'})
+    reply.header('Access-Control-Allow-Credentials', 'true');
+    reply.header('Access-Control-Allow-Origin', 'http://127.0.0.1:5173');
     reply.setCookie('refreshToken', refresh, {
         path: '/',
         httpOnly: true,
         secure: false,
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60,
-        domain: '127.0.0.1'
     })
     return token
 }
@@ -45,6 +46,7 @@ async function register(req, reply) {
             reply.status(409).send({error: 'Username or email is already assigned to an account.'});
             return;
         }
+        //validate password prod
         const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
         const user = await collection.insertOne({...req.body, password: hash, picture: "default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false});
         login({body: {username: user.username, password: req.body.password}}, reply)
@@ -66,19 +68,16 @@ async function login(req, reply) {
         reply.status(500).send(e);
     }  
 }
+
 async function logout(req, reply) {
-    try {
-        const collection = this.mongo.db.collection('users');
-        if(await collection.findOne({username: req.body.username}) || await collection.findOne({email: req.body.email})) {
-            reply.status(409).send('Username or email is already assigned to an account.');
-            return;
-        }
-        const user = await collection.insertOne({...req.body, picture: "", language: "en"});
-        reply.status(200).send(user);
-    } catch(e) {
-        reply.status(500).send(e);
-    }  
+    reply.clearCookie('refreshToken', {
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'lax'
+    }).code(200).send({message: 'logout successfull'})
 }
+
 async function refresh(req, reply) {
     const { refreshToken }  = req.cookies;
 
@@ -144,7 +143,7 @@ async function reset(req, reply) {
 
 async function oauth42(req, reply) {
     const state = crypto.randomBytes(21).toString('hex');
-    return reply.redirect(`https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-5f32f1a996105b3d288e373bff3db69959eb2dc8dac65f9b1fadd613af4acf61&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fauth%2F42%2Fcallback&response_type=code&state=${state}`)
+    return reply.redirect(`https://api.intra.42.fr/oauth/authorize?client_id=u-s4t2ud-5f32f1a996105b3d288e373bff3db69959eb2dc8dac65f9b1fadd613af4acf61&redirect_uri=http%3A%2F%2F127.0.0.1%3A8080%2Fauth%2F42%2Fcallback&response_type=code&state=${state}`)
 }
 
 async function oauth42Callback(req, reply) {
@@ -154,7 +153,7 @@ async function oauth42Callback(req, reply) {
         form.append('client_id', process.env.S42_ID);
         form.append('client_secret', process.env.S42_SECRET);
         form.append('code', req.query.code);
-        form.append('redirect_uri', "http://localhost:8080/auth/42/callback");
+        form.append('redirect_uri', "http://127.0.0.1:8080/auth/42/callback");
         form.append('state', req.query.state)
         const tokenResponse = await fetch(`https://api.intra.42.fr/oauth/token`, {
             method: 'POST',
@@ -239,4 +238,4 @@ async function oauthGoogleCallback (req, reply) {
     }
   }
 
-  export default {register, login, logout, refresh, forgot, reset, oauth42, oauthGoogleCallback, oauth42Callback}
+  export default {register, login, logout, refresh, forgot, reset, oauth42, oauthGoogleCallback, oauth42Callback, logout}
