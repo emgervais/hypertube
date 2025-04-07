@@ -3,7 +3,7 @@ import { useAuth } from '../components/auth/authContext.jsx';
 
 const API_URL = "http://127.0.0.1:8080";
 
-export const createAuthenticatedFetcher = (getToken, login, navigate) => {
+export const createAuthenticatedFetcher = (accessToken, login, navigate) => {
   const refreshToken = async () => {
     const res = await fetch(`${API_URL}/auth/refresh`, {
       method: 'POST',
@@ -21,7 +21,6 @@ export const createAuthenticatedFetcher = (getToken, login, navigate) => {
   };
 
   const fetchWithAuth = async (url, options = {}) => {
-    let accessToken = await getToken();
     const res = await fetch(`${API_URL}${url}`, {
       ...options,
       headers: {
@@ -50,8 +49,8 @@ export const createAuthenticatedFetcher = (getToken, login, navigate) => {
 };
 
 export const useFetchWithAuth = () => {
-  const { getToken, login } = useAuth();
+  const { accessToken, login } = useAuth();
   const navigate = useNavigate();
   
-  return createAuthenticatedFetcher(getToken, login, navigate);
+  return createAuthenticatedFetcher(accessToken, login, navigate);
 };
