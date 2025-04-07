@@ -11,13 +11,13 @@ export default function Oauth() {
             try {
                 const params = new URLSearchParams(window.location.search);
                 const token = params.get('token');
+                const username = params.get('username');
                 
                 if (!token) {
                     navigate('/login');
                     return;
                 }
-
-                login(token);
+                login(token, username);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 navigate('/');
             } catch(e) {

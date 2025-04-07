@@ -95,7 +95,7 @@ async function refresh(req, reply) {
             maxAge: 7 * 24 * 60 * 60,
             domain: '127.0.0.1'
         })
-        reply.send({accessToken: accessToken})
+        reply.send({accessToken: accessToken, username: decoded.username})
     } catch(e) {
         console.log(e)
         reply.status(403).send({ error: 'invalid refreshToken'})

@@ -8,7 +8,7 @@ function Layout() {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   return (
-    <div className='flex w-screen'>
+    <div className='flex w-screen h-full'>
       <Header setDesktopSidebarOpen={setDesktopSidebarOpen} />
       <Outlet className="grow-5"/>
     </div>

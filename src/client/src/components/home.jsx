@@ -15,7 +15,7 @@ export default function Home() {
         navigate('/login');
     }
     return (
-        <div>
+        <div className='grow-5'>
             <h1>HOME</h1>
             <button onClick={handleSubmit}>click me</button>
             <button onClick={handleLogout}>Logout</button>
