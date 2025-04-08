@@ -1,34 +1,40 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from './auth/authContext.jsx'
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
+import { Save, Pencil, Cancel } from '../assets/icon.jsx'
 
 //search bar in backend decode token and if token === requested username allow email & pen. Each info are locked with filled info has pen where user can press which unlock the specific square ->
 // pen transform in save + cancel icon when save press request is sent reset square and if successful info change else error appears.
-function EditableField({ fieldKey, initialValue }) {
-    const [editing, setEditing] = useState(false);
+function EditableField({ fieldKey, initialValue, activeField, setActiveField, isOwn  }) {
+    const editing = activeField === fieldKey;
     const [value, setValue] = useState(initialValue);
 
+    useEffect(() => {
+        setValue(initialValue);
+    }, [initialValue]);
+    
     const handleUnlock = (event) => {
         event.preventDefault();
-        setEditing(true);
+        setActiveField(fieldKey);
     }
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        // TODO: Add submission logic (e.g. updating the backend).
-        setEditing(false);
+        //fetch request
+        setActiveField(null);
     }
 
     const handleCancel = (event) => {
         event.preventDefault();
         setValue(initialValue);
-        setEditing(false);
+        setActiveField(null);
     }
-
+// Hard codded button size
     return (
-        <li>
-            <form onSubmit={handleSubmit}>
-                <label htmlFor={fieldKey}>{fieldKey}: </label>
+        <li className='max-w-s'>
+            <form className="flex items-center justify-between" onSubmit={handleSubmit}>
+                <label className='' htmlFor={fieldKey}>{fieldKey}: </label>
+                <div className='flex'>
                 <input
                     id={fieldKey}
                     name={fieldKey}
@@ -38,23 +44,30 @@ function EditableField({ fieldKey, initialValue }) {
                     onChange={(e) => setValue(e.target.value)}
                     className='border-solid border-1 border-inherit rounded-md text-center text-white/50 border-inherit'
                 />
-                {editing ? (
+                {isOwn ?
+                editing ? (
                     <>
-                        <button type="submit">Save</button>
-                        <button type="button" onClick={handleCancel}>Cancel</button>
+                        <button className='border-solid border-inherit border p-2 ml-1 rounded-md' type="submit"><Save/></button>
+                        <button className='border-solid border-inherit border p-2 ml-1 rounded-md' type="button" onClick={handleCancel}><Cancel/></button>
                     </>
                 ) : (
-                    <button onClick={handleUnlock}>Unlock</button>
-                )}
+                    <>
+                        <button className='w-[38px] h-[34px]' onClick={handleUnlock}><Pencil className="font-2"/></button>
+                        <button className='w-[38px] h-[34px]'></button>
+                    </>
+                )
+            : ""}
+                </div>
             </form>
         </li>
     );
 }
 
 export default function Account() {
-    const { username, accesToken } = useAuth();
+    const { username } = useAuth();
     const [userData, setUserData] = useState({})
     const [user, setUser] = useState(username)
+    const [activeField, setActiveField] = useState(null);
     const fetchWithAuth = useFetchWithAuth();
 
     useEffect(() => {
@@ -72,6 +85,7 @@ export default function Account() {
             return;
         setUser(username);
     }
+    console.log(userData)
     return (
     <div className='flex grow-5 flex-col p-5'>
     <header className='flex justify-center'>
@@ -80,17 +94,27 @@ export default function Account() {
             <button type="submit" className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500"> Search </button>
         </form>
     </header>
-    <main className='flex w-full h-full items-center justify-center'>
+    <main className='flex w-full h-full justify-center mt-10 lg:mt-50 flex-col lg:flex-row'>
         <div className='flex h-50 flex-col grow-1'>
             <img src={userData.picture}></img>
-            <button >edit</button>
+            {userData.username === username? <button ><Pencil/></button> : ""}
         </div>
-        <ul className='flex grow-2 flex-wrap'>
-            {Object.entries(userData).map(([key, value]) => {
-                if(key === 'picture') return null;
-                return <EditableField key={key} fieldKey={key} initialValue={value} />
-            })}
-        </ul>
+        <div className='flex grow-5 h-50 justify-center h-50 w-100%'>
+            <ul className='grid grid-cols-1 gap-10 lg:grid-cols-2 lg:w-8/10'>
+                {Object.entries(userData).map(([key, value]) => {
+                    if(key === 'picture') return null;
+                    return (
+                    <EditableField
+                        key={key}
+                        fieldKey={key}
+                        initialValue={value}
+                        activeField={activeField} 
+                        setActiveField={setActiveField}
+                        isOwn={userData.username === username}
+                    />);
+                })}
+            </ul>
+        </div>
     </main>
     </div>
     )

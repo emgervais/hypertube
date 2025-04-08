@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import './App.css'
 import Login from './components/auth/login.jsx'
 import Register from './components/auth/register.jsx'
@@ -13,6 +12,7 @@ import {AuthProvider } from './components/auth/authContext.jsx'
 import { BrowserRouter } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
 import Layout from './components/layout.jsx';
+import {PrivateRoute} from './auth/protectRoute.jsx'
 
 function App() {
 
@@ -28,7 +28,7 @@ function App() {
             <Route path='/forgotPassword' element={<ForgotPassword />}/>
             <Route path='/confirmResetToken' element={<ConfirmResetToken/>}/>
             <Route path='/oauth' element={<Oauth/>}/>
-            <Route path='/account' element={<Account/>}/>
+            <Route path='/account' element={<PrivateRoute><Account/></PrivateRoute>}/>
             <Route path="*" element={<NoMatch/ >} />
           </Route>
         </Routes>

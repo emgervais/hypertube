@@ -11,7 +11,9 @@
       return reply.status(401).send({ error: 'No token provided' })
     }
     try {
-      const decoded = req.jwt.verify(token)
+      const decoded = req.jwt.verify(token, { ignoreExpiration: false })
+      if (Date.now() >= decoded.exp * 1000)
+        throw new Error("Token expired");
       req.user = decoded
     } catch(e) {
       return reply.status(401).send({ error: 'Invalid token' })

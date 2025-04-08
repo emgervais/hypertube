@@ -1,7 +1,6 @@
 import bcrypt from 'bcrypt'
 import crypto from 'crypto'
-import { stringify } from 'querystring'
-import { json } from 'stream/consumers'
+
 
 const SALT_ROUNDS = 10
 
@@ -70,11 +69,12 @@ async function login(req, reply) {
 }
 
 async function logout(req, reply) {
-    reply.clearCookie('refreshToken', {
+    reply.setCookie('refreshToken', {
         path: '/',
         httpOnly: true,
         secure: false,
-        sameSite: 'lax'
+        sameSite: 'lax',
+        maxAge: 0
     }).code(200).send({message: 'logout successfull'})
 }
 
@@ -84,7 +84,11 @@ async function refresh(req, reply) {
     if (!refreshToken)
         return reply.status(401).send({ error: 'No refresh token'})
     try {
-        const decoded = req.jwt.verify(refreshToken)
+        const decoded = req.jwt.verify(refreshToken, { ignoreExpiration: false })
+        console.log(decoded)
+        console.log(Date.now())
+        if (Date.now() >= decoded.exp * 1000)
+            throw new Error("Token expired");
         const accessToken = req.jwt.sign({id: decoded.id, username: decoded.username}, {expiresIn: '2h'})
         const refresh = req.jwt.sign({id: decoded.id, username: decoded.username}, {expiresIn: '72h'})
         reply.setCookie('refreshToken', refresh, {
@@ -92,8 +96,7 @@ async function refresh(req, reply) {
             httpOnly: true,
             secure: false,
             sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60,
-            domain: '127.0.0.1'
+            maxAge: 7 * 24 * 60 * 60
         })
         reply.send({accessToken: accessToken, username: decoded.username})
     } catch(e) {

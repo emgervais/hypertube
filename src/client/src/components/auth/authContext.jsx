@@ -13,7 +13,7 @@ const persistItem = (key, value) => {
 export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(localStorage.getItem('accessToken') || null);
   const [username, setUsername] = useState(localStorage.getItem('username') || null);
-  
+  console.log(accessToken);
   useEffect(() => {
     persistItem('accessToken', accessToken);
     persistItem('username', username);
@@ -27,15 +27,11 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     setAccessToken(null);
     setUsername(null);
-    await fetch('http://127.0.0.1:8080/auth/logout');
+    const re = await fetch('http://127.0.0.1:8080/auth/logout');
+    console.log(await re.json())
   };
 
-  const value = useMemo(() => ({
-    accessToken,
-    username,
-    login,
-    logout,
-  }), [accessToken, username]);
+  const value = { accessToken, username, login, logout };
 
   return (
     <AuthContext.Provider value={value}>
