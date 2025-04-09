@@ -1,19 +1,25 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './auth/authContext.jsx'
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
 import { Save, Pencil, Cancel } from '../assets/icon.jsx'
 import Error from './alert.jsx'
 
-//search bar in backend decode token and if token === requested username allow email & pen. Each info are locked with filled info has pen where user can press which unlock the specific square ->
-// pen transform in save + cancel icon when save press request is sent reset square and if successful info change else error appears.
-function EditableField({ fieldKey, initialValue, activeField, userData, setError, setActiveField, setUser, updateUsername, isOwn  }) {
+function EditableField({ fieldKey, initialValue, activeField, accountActions, isOwn  }) {
+    const { userData, setError, setActiveField, setUserData, updateUsername } = accountActions;
     const editing = activeField === fieldKey;
     const [value, setValue] = useState(initialValue);
     const fetchWithAuth = useFetchWithAuth();
+    const inputRef = useRef(null);
 
     useEffect(() => {
         setValue(initialValue);
     }, [initialValue]);
+
+    useEffect(() => {
+        if (editing && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [editing]);
 
     const handleUnlock = (event) => {
         event.preventDefault();
@@ -38,7 +44,7 @@ function EditableField({ fieldKey, initialValue, activeField, userData, setError
         else
             if(fieldKey === "username") {
                 updateUsername(value);
-                setUser({...userData, username: value});
+                setUserData({...userData, username: value});
             }
         
         setActiveField(null);
@@ -56,23 +62,26 @@ function EditableField({ fieldKey, initialValue, activeField, userData, setError
                 <label className='' htmlFor={fieldKey}>{fieldKey}: </label>
                 <div className='flex'>
                 <input
+                    ref={inputRef}
                     id={fieldKey}
                     name={fieldKey}
                     type="text"
                     value={value}
                     disabled={!editing}
                     onChange={(e) => setValue(e.target.value)}
-                    className='border-solid border-1 border-inherit rounded-md text-center text-white/50 border-inherit'
+                    onKeyDown={(e) => { if(e.key === 'Enter') {handleSubmit(e);}}}
+                    required
+                    className={`border-solid border-1 border-inherit rounded-md text-center ${editing ? "text-white border-white" : "text-white/50 border-inherit" }`}
                 />
                 {isOwn ?
                 editing ? (
                     <>
-                        <button className='border-solid border-inherit border p-2 ml-1 rounded-md' type="submit"><Save/></button>
-                        <button className='border-solid border-inherit border p-2 ml-1 rounded-md' type="button" onClick={handleCancel}><Cancel/></button>
+                        <button className='border-solid border-indigo-600 bg-indigo-600 hover:bg-indigo-500 border p-2 ml-1 rounded-md' type="submit"><Save /></button>
+                        <button className='border-solid border-indigo-600 bg-indigo-600 hover:bg-indigo-500 border p-2 ml-1 rounded-md' type="button" onClick={handleCancel}><Cancel/></button>
                     </>
                 ) : (
                     <>
-                        <button className='w-[38px] h-[34px]' onClick={handleUnlock}><Pencil className="font-2"/></button>
+                        <button className='w-[34px] h-[34px] ml-1 border-indigo-600 bg-indigo-600 hover:bg-indigo-500 rounded-md  flex items-center justify-center' onClick={handleUnlock}><Pencil className="font-2"/></button>
                         <button className='w-[38px] h-[34px]'></button>
                     </>
                 )
@@ -101,16 +110,18 @@ export default function Account() {
     }, [user]);
     const handleSearch = async (event) => {
         event.preventDefault()
-        const username = event.target.username.value;
+        const username = event.target.searchUsername.value;
         if(!username)
             return;
         setUser(username);
     }
+
+    const accountActions = { userData, setError, setActiveField, setUserData, updateUsername };
     return (
     <div className='flex grow-5 flex-col p-5'>
     <header className='flex justify-center'>
         <form className='flex' onSubmit={handleSearch}>
-            <input className='border-solid border-1 border-inherit rounded-md text-center' id="username" name="username" type="username" required autoComplete="username" placeholder="Search an account"></input>
+            <input className='border-solid border-1 border-inherit rounded-md text-center' id="searchUsername" name="searchUsername" type="searchUsername" required autoComplete="searchUsername" placeholder="Search an account"></input>
             <button type="submit" className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500"> Search </button>
         </form>
     </header>
@@ -132,11 +143,7 @@ export default function Account() {
                         fieldKey={key}
                         initialValue={value}
                         activeField={activeField} 
-                        userData={userData}
-                        setError={setError}
-                        setActiveField={setActiveField}
-                        setUser={setUserData}
-                        updateUsername={updateUsername}
+                        accountActions={accountActions}
                         isOwn={userData.username === username}
                     />);
                 })}
