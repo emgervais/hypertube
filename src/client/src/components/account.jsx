@@ -2,25 +2,45 @@ import { useEffect, useState } from 'react';
 import { useAuth } from './auth/authContext.jsx'
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
 import { Save, Pencil, Cancel } from '../assets/icon.jsx'
+import Error from './alert.jsx'
 
 //search bar in backend decode token and if token === requested username allow email & pen. Each info are locked with filled info has pen where user can press which unlock the specific square ->
 // pen transform in save + cancel icon when save press request is sent reset square and if successful info change else error appears.
-function EditableField({ fieldKey, initialValue, activeField, setActiveField, isOwn  }) {
+function EditableField({ fieldKey, initialValue, activeField, userData, setError, setActiveField, setUser, updateUsername, isOwn  }) {
     const editing = activeField === fieldKey;
     const [value, setValue] = useState(initialValue);
+    const fetchWithAuth = useFetchWithAuth();
 
     useEffect(() => {
         setValue(initialValue);
     }, [initialValue]);
-    
+
     const handleUnlock = (event) => {
         event.preventDefault();
+        setError("");
         setActiveField(fieldKey);
     }
 
-    const handleSubmit = (event) => {
+    const handleSubmit = async (event) => {
         event.preventDefault();
-        //fetch request
+        const res = await fetchWithAuth('/user/changeInfo', {
+            headers: {
+                "Content-Type": "application/json",
+              },
+            method: 'PUT',
+            body: JSON.stringify({[fieldKey]: value})
+        });
+        if(!res.ok) {
+            const result = await res.json();
+            setError(result.error);
+            setValue(initialValue);
+        }
+        else
+            if(fieldKey === "username") {
+                updateUsername(value);
+                setUser({...userData, username: value});
+            }
+        
         setActiveField(null);
     }
 
@@ -64,10 +84,11 @@ function EditableField({ fieldKey, initialValue, activeField, setActiveField, is
 }
 
 export default function Account() {
-    const { username } = useAuth();
+    const { username, updateUsername } = useAuth();
     const [userData, setUserData] = useState({})
     const [user, setUser] = useState(username)
     const [activeField, setActiveField] = useState(null);
+    const [error, setError] = useState("");
     const fetchWithAuth = useFetchWithAuth();
 
     useEffect(() => {
@@ -85,7 +106,6 @@ export default function Account() {
             return;
         setUser(username);
     }
-    console.log(userData)
     return (
     <div className='flex grow-5 flex-col p-5'>
     <header className='flex justify-center'>
@@ -99,7 +119,10 @@ export default function Account() {
             <img src={userData.picture}></img>
             {userData.username === username? <button ><Pencil/></button> : ""}
         </div>
-        <div className='flex grow-5 h-50 justify-center h-50 w-100%'>
+        <div className='flex grow-5 justify-center h-1/2 w-100% flex-col items-center'>
+            <div className='max-w-1/2 flex justify-center mb-10'>
+                {error && <Error message={error}/>}
+            </div>
             <ul className='grid grid-cols-1 gap-10 lg:grid-cols-2 lg:w-8/10'>
                 {Object.entries(userData).map(([key, value]) => {
                     if(key === 'picture') return null;
@@ -109,7 +132,11 @@ export default function Account() {
                         fieldKey={key}
                         initialValue={value}
                         activeField={activeField} 
+                        userData={userData}
+                        setError={setError}
                         setActiveField={setActiveField}
+                        setUser={setUserData}
+                        updateUsername={updateUsername}
                         isOwn={userData.username === username}
                     />);
                 })}

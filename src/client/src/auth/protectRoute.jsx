@@ -4,7 +4,7 @@ import { useFetchWithAuth } from '../utils/fetchProtected';
 export const PrivateRoute = ({ children }) => {
     const fetchWithAuth = useFetchWithAuth();
     const testToken = async () => {
-        await fetchWithAuth(`/user/a`)
+        await fetchWithAuth(`/auth/tokenTest`)
     }
     testToken();
 

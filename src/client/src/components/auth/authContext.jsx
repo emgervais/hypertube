@@ -13,7 +13,6 @@ const persistItem = (key, value) => {
 export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(localStorage.getItem('accessToken') || null);
   const [username, setUsername] = useState(localStorage.getItem('username') || null);
-  console.log(accessToken);
   useEffect(() => {
     persistItem('accessToken', accessToken);
     persistItem('username', username);
@@ -24,14 +23,17 @@ export function AuthProvider({ children }) {
     setUsername(username);
   };
 
+  const updateUsername = (username) => {
+    setUsername(username);
+  }
+
   const logout = async () => {
     setAccessToken(null);
     setUsername(null);
-    const re = await fetch('http://127.0.0.1:8080/auth/logout', {credentials: 'include'});
-    console.log(await re.json())
+    await fetch('http://127.0.0.1:8080/auth/logout', {credentials: 'include'});
   };
 
-  const value = { accessToken, username, login, logout };
+  const value = { accessToken, username, login, logout, updateUsername };
 
   return (
     <AuthContext.Provider value={value}>

@@ -39,13 +39,14 @@ async function findUsername(collection, given_name, family_name) {
 }
 
 async function register(req, reply) {
+    const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{7,}$/;
     try {
         const collection = this.mongo.db.collection('users');
-        if(await collection.findOne({username: req.body.username}) || await collection.findOne({email: req.body.email})) {
-            reply.status(409).send({error: 'Username or email is already assigned to an account.'});
-            return;
-        }
-        //validate password prod
+        if(await collection.findOne({username: req.body.username}) || await collection.findOne({email: req.body.email}))
+            return reply.status(409).send({error: 'Username or email is already assigned to an account.'});
+        if (!passRegex.test(req.body.password))
+            return reply.status(409).send({error: 'Password is invalid'});
+
         const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
         const user = await collection.insertOne({...req.body, password: hash, picture: "default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false});
         login({body: {username: user.username, password: req.body.password}}, reply)
@@ -84,8 +85,6 @@ async function refresh(req, reply) {
         return reply.status(401).send({ error: 'No refresh token'})
     try {
         const decoded = req.jwt.verify(refreshToken, { ignoreExpiration: false })
-        console.log(decoded)
-        console.log(Date.now())
         if (Date.now() >= decoded.exp * 1000)
             throw new Error("Token expired");
         const accessToken = req.jwt.sign({id: decoded.id, username: decoded.username}, {expiresIn: '2h'})
@@ -103,6 +102,7 @@ async function refresh(req, reply) {
         reply.status(403).send({ error: 'invalid refreshToken'})
     }
 }
+
 
 async function forgot(req, reply) {
     const email = req.body.email;

@@ -4,8 +4,8 @@ async function getUser(req, reply) {
         const user = await collection.findOne({username: req.params.username});
         if (!user)
             return reply.status(404).send({error: "User doesn't exist"});
-        if (req.user.username === req.params.username)
-            return reply.status(200).send({username: user.username, email: user.email, name: user.name, surname: user.surname, picture: user.picture, language: user.language});
+        if (req.user.id === user._id.toString())
+            return reply.status(200).send({username: user.username, email: user.email, name: user.name, surname: user.surname, picture: user.picture, language: user.language, password: ""});
         reply.status(200).send({username: user.username, name: user.name, surname: user.surname, picture: user.picture})
     } catch(e) {
         reply.status(500).send({error: "Server error"});
@@ -33,4 +33,32 @@ async function deleteUser(req, reply) {
     }    
 }
 
-export default {deleteUser, getUsers, getUser}
+async function modifyInfo(req, reply) {
+    const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{7,}$/;
+    try {
+        const collection = this.mongo.db.collection('users');
+        const id = new this.mongo.ObjectId(req.user.id);
+        const user = await collection.findOne(id);
+        console.log(user)
+        if (req.body.password && !passRegex.test(req.body.password))
+            return reply.status(409).send({error: "new password not valid"})
+        
+        if (req.body.username && await collection.findOne({username: req.body.username}))
+            return reply.status(409).send({error: "username already in use"})
+
+        if (req.body.email && user.isOauth)
+            return reply.status(409).send({error: "Oauth account cannot change their email"})
+
+        if (req.body.email && await collection.findOne({email: req.body.email}))
+            return reply.status(409).send({error: "email already in use"})
+
+        await collection.findOneAndUpdate({_id: id}, { $set: req.body });
+        reply.status(200).send({message: "change successfull"});
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: "Server error"})
+    }
+
+}
+
+export default {deleteUser, getUsers, getUser, modifyInfo}
