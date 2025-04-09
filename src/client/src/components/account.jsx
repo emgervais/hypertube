@@ -98,6 +98,7 @@ export default function Account() {
     const [user, setUser] = useState(username)
     const [activeField, setActiveField] = useState(null);
     const [error, setError] = useState("");
+    const fileInputRef = useRef(null);
     const fetchWithAuth = useFetchWithAuth();
 
     useEffect(() => {
@@ -116,6 +117,31 @@ export default function Account() {
         setUser(username);
     }
 
+    const handlePicture = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+            const base64File = reader.result;
+            const res = await fetchWithAuth('/user/changeInfo', {
+                method: 'PUT',
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ picture: base64File })
+            });
+        
+            if (!res.ok) {
+                const result = await res.json();
+                setError(result.error);
+            } else {
+                const data = await res.json();
+                setUserData({ ...userData, picture: data.picture });
+            }
+        };
+        reader.readAsDataURL(file);
+    }
+
     const accountActions = { userData, setError, setActiveField, setUserData, updateUsername };
     return (
     <div className='flex grow-5 flex-col p-5'>
@@ -128,7 +154,23 @@ export default function Account() {
     <main className='flex w-full h-full justify-center mt-10 lg:mt-50 flex-col lg:flex-row'>
         <div className='flex h-50 flex-col grow-1'>
             <img src={userData.picture}></img>
-            {userData.username === username? <button ><Pencil/></button> : ""}
+            {userData.username === username && (
+                <div>
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current.click()}
+                        className="p-2"
+                    >
+                        <Pencil />
+                    </button>
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        style={{ display: 'none' }}
+                        onChange={handlePicture}
+                    />
+                </div>
+                )}
         </div>
         <div className='flex grow-5 justify-center h-1/2 w-100% flex-col items-center'>
             <div className='max-w-1/2 flex justify-center mb-10'>
