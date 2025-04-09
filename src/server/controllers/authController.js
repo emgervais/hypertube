@@ -69,12 +69,11 @@ async function login(req, reply) {
 }
 
 async function logout(req, reply) {
-    reply.setCookie('refreshToken', {
+    reply.clearCookie('refreshToken', {
         path: '/',
         httpOnly: true,
         secure: false,
-        sameSite: 'lax',
-        maxAge: 0
+        sameSite: 'lax'
     }).code(200).send({message: 'logout successfull'})
 }
 

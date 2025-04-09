@@ -27,7 +27,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     setAccessToken(null);
     setUsername(null);
-    const re = await fetch('http://127.0.0.1:8080/auth/logout');
+    const re = await fetch('http://127.0.0.1:8080/auth/logout', {credentials: 'include'});
     console.log(await re.json())
   };
 
