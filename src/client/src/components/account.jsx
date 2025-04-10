@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from './auth/authContext.jsx'
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
-import { Save, Pencil, Cancel } from '../assets/icon.jsx'
+import { Save, Pencil, Cancel, RamProfile } from '../assets/icon.jsx'
 import Error from './alert.jsx'
 
 function EditableField({ fieldKey, initialValue, activeField, accountActions, isOwn  }) {
@@ -57,7 +57,7 @@ function EditableField({ fieldKey, initialValue, activeField, accountActions, is
     }
 // Hard codded button size
     return (
-        <li className='max-w-s'>
+        <li className='max-w-sm'>
             <form className="flex items-center justify-between" onSubmit={handleSubmit}>
                 <label className='' htmlFor={fieldKey}>{fieldKey}: </label>
                 <div className='flex'>
@@ -105,7 +105,13 @@ export default function Account() {
         const request = async () => {
             const res = await fetchWithAuth(`/user/${user}`)
             const infos = await res.json();
-            setUserData(infos);
+            if(!res.ok) {
+                setError(infos.error);
+            }
+            else {
+                setError("");
+                setUserData(infos);
+            }
         }
         request();
     }, [user]);
@@ -136,7 +142,7 @@ export default function Account() {
                 setError(result.error);
             } else {
                 const data = await res.json();
-                setUserData({ ...userData, picture: data.picture });
+                setUserData({ ...userData, picture: base64File });
             }
         };
         reader.readAsDataURL(file);
@@ -151,15 +157,15 @@ export default function Account() {
             <button type="submit" className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500"> Search </button>
         </form>
     </header>
-    <main className='flex w-full h-full justify-center mt-10 lg:mt-50 flex-col lg:flex-row'>
-        <div className='flex h-50 flex-col grow-1'>
-            <img src={userData.picture}></img>
+    <main className='flex w-full h-full justify-center mt-10 flex-col items-center'>
+        <div className='flex h-50 flex-col grow-1 max-w-75'>
+            {userData.picture === "default.png" ? <RamProfile className="rounded-full border-solid border-indigo-600 border-2 p-2"/> : <img src={userData.picture} className='rounded-full border-solid border-indigo-600 border-2 w-xs'></img>}
             {userData.username === username && (
-                <div>
+                <div className='flex justify-end'>
                     <button
                         type="button"
                         onClick={() => fileInputRef.current.click()}
-                        className="p-2"
+                        className="border-solid border-indigo-600 bg-indigo-600 hover:bg-indigo-500 border p-2 ml-1 rounded-md"
                     >
                         <Pencil />
                     </button>
@@ -172,11 +178,11 @@ export default function Account() {
                 </div>
                 )}
         </div>
-        <div className='flex grow-5 justify-center h-1/2 w-100% flex-col items-center'>
+        <div className='flex grow-2 justify-center  w-full flex-col items-center'>
             <div className='max-w-1/2 flex justify-center mb-10'>
                 {error && <Error message={error}/>}
             </div>
-            <ul className='grid grid-cols-1 gap-10 lg:grid-cols-2 lg:w-8/10'>
+            <ul className='grid grid-cols-1 gap-10 lg:grid-cols-2 lg:w-8/10 max-w-3xl'>
                 {Object.entries(userData).map(([key, value]) => {
                     if(key === 'picture') return null;
                     return (

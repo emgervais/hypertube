@@ -6,9 +6,9 @@ frontend
     <!-- register -->
     <!-- 2oauth -->
     <!-- logout everywhere -->
-    preffered language
-    modify profile + profilepicture
-    see other user profile(thourgh username?) no email
+    <!-- preffered language -->
+    <!-- modify profile + profilepicture -->
+    <!-- see other user profile(thourgh username?) no email -->
 
     library
     -----------------
@@ -40,7 +40,7 @@ backend
     <!-- forget password email -->
     <!-- logout -->
     <!-- token? -->
-    valid password
+    <!-- valid password -->
 
     streaming
     --------------------

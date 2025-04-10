@@ -15,7 +15,7 @@ async function getUser(req, reply) {
 async function getUsers(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
-        const users = await collection.find().toArray();
+        const users = await collection.find({}, { projection: { picture: 0 } }).toArray();
         reply.status(200).send(users);
     } catch(e) {
         reply.status(500).send({error: "Server error"});
