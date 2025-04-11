@@ -1,7 +1,10 @@
 import Fastify from "fastify"
 import db from "@fastify/mongodb"
+import fastifySwagger from '@fastify/swagger'
+import fastifySwaggerUI from '@fastify/swagger-ui'
 import userRoutes from "./routes/userRoutes.js"
 import authRoutes from "./routes/authRoutes.js"
+import apiRoutes from "./routes/apiRoutes.js"
 import dotenv from 'dotenv'
 import auth from './plugin/auth.js'
 import cors from '@fastify/cors'
@@ -9,14 +12,38 @@ import fjwt from '@fastify/jwt'
 import fCookie from '@fastify/cookie'
 import mailerPlugin from 'fastify-mailer'
 import oauthPlugin from '@fastify/oauth2'
+import path from 'path'
 
 dotenv.config()
+
 const fastify = Fastify({
   logger: {
     transport: {
       target: '@fastify/one-line-logger'
     }
   }
+})
+.register(fastifySwagger, {
+  openapi: {
+    info: {
+        title: 'Hypertube API',
+        description: 'API doc'
+    },
+    components: {
+        securitySchemes: {
+            bearerAuth: {
+                type: 'http',
+                scheme: 'bearer'
+            }
+        }
+    },
+    security: [
+        { bearerAuth: [] }
+    ]
+}
+})
+.register(fastifySwaggerUI, {
+  routePrefix: '/docs'
 })
 .register(fjwt, { secret: process.env.JWT_SECRET})
 .register(cors, { 
@@ -62,7 +89,6 @@ const fastify = Fastify({
     },
     auth: oauthPlugin.GOOGLE_CONFIGURATION
   },
-  startRedirectPath: '/auth/google',
   callbackUri: 'http://127.0.0.1:8080/auth/google/callback'
 })
 .addHook('preHandler', (req, res, next) => {
@@ -71,7 +97,16 @@ const fastify = Fastify({
 })
 .register(authRoutes, {prefix: '/auth'})
 .register(userRoutes, {prefix: '/user'})
+.register(apiRoutes, {prefix: '/api'})
 .decorate('authenticate', auth)
+.register(import('@fastify/static'), {
+  root: path.join(process.cwd(), "src", "server", "assets"),
+  prefix: '/images/',
+})
+
+fastify.get("/images/:name", (req, reply) => {
+  reply.sendFile(req.params.name)
+});
 
 async function main() {
   fastify.listen({

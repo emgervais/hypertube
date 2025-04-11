@@ -48,7 +48,7 @@ async function register(req, reply) {
             return reply.status(409).send({error: 'Password is invalid'});
 
         const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
-        const user = await collection.insertOne({...req.body, password: hash, picture: "default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false});
+        const user = await collection.insertOne({...req.body, password: hash, picture: "http://localhost:8080/images/default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false});
         login({body: {username: user.username, password: req.body.password}}, reply)
     } catch(e) {
         reply.status(500).send(e);
@@ -202,6 +202,16 @@ async function oauth42Callback(req, reply) {
       }
 }
 
+async function google(req, reply) {
+    this.googleOAuth2.generateAuthorizationUri(
+      req,
+      reply,
+      (err, authorizationEndpoint) => {
+       if (err) console.error(err)
+       reply.redirect(authorizationEndpoint)
+      }
+    );
+  }
 async function oauthGoogleCallback (req, reply) {
     try {
       const tokenResponse = await this.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(req);
@@ -240,4 +250,4 @@ async function oauthGoogleCallback (req, reply) {
     }
   }
 
-  export default {register, login, logout, refresh, forgot, reset, oauth42, oauthGoogleCallback, oauth42Callback, logout}
+  export default {register, login, logout, refresh, forgot, reset, oauth42, oauthGoogleCallback, oauth42Callback, logout, google}

@@ -3,15 +3,16 @@ import authController from "../controllers/authController.js"
 
 async function authRoutes (fastify, options) {
     fastify.post('/register', { schema: registerValidation }, authController.register)
-    fastify.post('/login', { schema: loginValidation }, authController.login)
-    fastify.get('/logout', authController.logout)
-    fastify.post('/refresh', authController.refresh)
-    fastify.post('/forgotPassword', authController.forgot)
-    fastify.post('/resetPassword', authController.reset)
-    fastify.get('/42/callback', authController.oauth42Callback)
-    fastify.get('/42', authController.oauth42)
-    fastify.get('/google/callback', authController.oauthGoogleCallback)
-    fastify.get('/tokenTest', {preHandler: fastify.authenticate}, () => {})
+    fastify.post('/login', { schema: {...loginValidation, hide:true }}, authController.login)
+    fastify.get('/logout', { schema: {hide: true} }, authController.logout)
+    fastify.post('/refresh', { schema: {hide: true} }, authController.refresh)
+    fastify.post('/forgotPassword', { schema: {hide: true} }, authController.forgot)
+    fastify.post('/resetPassword', { schema: {hide: true} }, authController.reset)
+    fastify.get('/42/callback', { schema: {hide: true} }, authController.oauth42Callback)
+    fastify.get('/42', { schema: {hide: true} }, authController.oauth42)
+    fastify.get('/google/callback', { schema: {hide: true} }, authController.oauthGoogleCallback)
+    fastify.get('/google', {schema: {hide:true}}, authController.google)
+    fastify.get('/tokenTest', {preHandler: fastify.authenticate, schema: {hide:true}}, () => {})
 }
 
 export default authRoutes;

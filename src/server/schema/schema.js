@@ -20,6 +20,6 @@ const updateSchema = S.object()
     .prop('picture', S.string().minLength(1))
     .prop('language', S.string().enum(languages))
     
-export const registerValidation = {body: registerSchema}
+export const registerValidation = {body: registerSchema, hide: true}
 export const loginValidation = {body: loginSchema}
-export const updateValidation = {body: updateSchema}
+export const updateValidation = {body: updateSchema, hide: true}

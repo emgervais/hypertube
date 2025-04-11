@@ -1,3 +1,6 @@
+import fs from 'fs'
+import path from 'path'
+
 async function getUser(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -39,7 +42,6 @@ async function modifyInfo(req, reply) {
         const collection = this.mongo.db.collection('users');
         const id = new this.mongo.ObjectId(req.user.id);
         const user = await collection.findOne(id);
-        console.log(user)
         if (req.body.password && !passRegex.test(req.body.password))
             return reply.status(409).send({error: "new password not valid"})
         
@@ -51,7 +53,14 @@ async function modifyInfo(req, reply) {
 
         if (req.body.email && await collection.findOne({email: req.body.email}))
             return reply.status(409).send({error: "email already in use"})
-
+        if (req.body.picture) {
+            const base64Data = req.body.picture.replace(/^data:image\/\w+;base64,/, "");
+            const buffer = Buffer.from(base64Data, "base64");
+            const fileName = `${req.user.id}-${Date.now()}.jpg`;
+            const filePath = path.join(process.cwd(), "src", "server", "assets", fileName);
+            fs.writeFileSync(filePath, buffer);
+            req.body.picture = "http://localhost:8080/images/" + fileName;
+        }
         await collection.findOneAndUpdate({_id: id}, { $set: req.body });
         reply.status(200).send({message: "change successfull"});
     } catch(e) {
