@@ -104,6 +104,23 @@ const fastify = Fastify({
   prefix: '/images/',
 })
 
+fastify.after(() => {
+  const db = fastify.mongo.db;
+  db.listCollections({ name: 'movies' }).next((err, collinfo) => {
+      if (err) {
+          fastify.log.error(err);
+          return;
+      }
+      if (!collinfo) {
+          db.createCollection('movies')
+            .then(() => fastify.log.info("Collection 'movies' created"))
+            .catch(err => fastify.log.error(err));
+      } else {
+          fastify.log.info("Collection 'movies' already exists");
+      }
+  });
+});
+
 fastify.get("/images/:name", (req, reply) => {
   reply.sendFile(req.params.name)
 });

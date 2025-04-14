@@ -60,19 +60,9 @@ backend
     Authenticated users can access user comments via /comments/ :id and movie/ :id/comments.
     They can also post a comment using an appropriate payload.
 
-    POST oauth/token
-        Expects client + secret, returns an auth token
-    GET /users
-        returns a list of users with their id and their username
-    GET /users/:id
-        returns username, email address, profile picture URL
-    PATCH /users/:id
-        Expected data : username, email, password, profile picture URL
-    GET /movies
-        returns the list of movies available on the frontpage, with their id and their name
+
     GET /movies/:id
-        return a movie’s name, id, imdB mark, production year, length, available subtitles,
-        number of comments
+        number of comments missing
     GET /comments
         returns a list of latest comments which includes comment’s author username, date,
         content, and id.
