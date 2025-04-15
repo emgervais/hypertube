@@ -112,13 +112,22 @@ fastify.after(() => {
           return;
       }
       if (!collinfo) {
-          db.createCollection('movies')
-            .then(() => fastify.log.info("Collection 'movies' created"))
-            .catch(err => fastify.log.error(err));
+          db.createCollection('movies').catch(err => fastify.log.error(err));
       } else {
           fastify.log.info("Collection 'movies' already exists");
       }
   });
+  db.listCollections({ name: 'comments' }).next((err, collinfo) => {
+    if (err) {
+        fastify.log.error(err);
+        return;
+    }
+    if (!collinfo) {
+        db.createCollection('comments').catch(err => fastify.log.error(err));
+    } else {
+        fastify.log.info("Collection 'comments' already exists");
+    }
+});
 });
 
 fastify.get("/images/:name", (req, reply) => {

@@ -53,37 +53,10 @@ backend
 
     API
     -------------------
-    restful + oauth
     Authenticated users are allowed to retrieve or update any profiles.
-    Any user can access the website’s « front page », which displays basic inforation about the top movies.
-    A GET request on a movie should return all the relevant information that has been previously collected.
-    Authenticated users can access user comments via /comments/ :id and movie/ :id/comments.
-    They can also post a comment using an appropriate payload.
-
-
-    GET /movies/:id
-        number of comments missing
-    GET /comments
-        returns a list of latest comments which includes comment’s author username, date,
-        content, and id.
-    GET /comments/:id
-        returns comment, author’s username, comment id, date posted
-    PATCH /comments/:id
-        Expected data : comment, username
-    DELETE /comments/:id
-    POST /comments OR POST /movies/:movie_id/comments
-        Expected data : comment, movie_id. Rest is filled by the server
-    More API routes to add, delete movies
-
-
-
-
-
 
 security
 ------------------
 xss
 unwanted upload
-sqlinjection
-hashed password
 form validation

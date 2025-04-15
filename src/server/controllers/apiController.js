@@ -11,13 +11,11 @@ async function getUsers(req, reply) {
         reply.status(200).send(users);
     } catch (e) {
         console.log(e);
-        reply.status(500).send({error: "internal server error"});
+        reply.status(500).send({error: e.message})
     }
 }
 
 async function getUser(req, reply) {
-    if(!req.params.id)
-        return reply.status(422).send({error: "Missing id"})
     try {
         const collection = this.mongo.db.collection('users');
         const id = new this.mongo.ObjectId(req.params.id);
@@ -27,7 +25,7 @@ async function getUser(req, reply) {
         reply.status(200).send({username: user.username, email: user.email, picture: user.picture})
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: "server internal error"})
+        reply.status(500).send({error: e.message})
     }
 }
 
@@ -43,7 +41,7 @@ async function getMovies(req, reply) {
         reply.status(200).send(results.data.movies);
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: "Internal server error"});
+        reply.status(500).send({error: e.message})
     }
     
 }
@@ -65,17 +63,79 @@ async function getMovie(req, reply) {
         });
         const subs = [...new Set(rowData.map(row => Object.keys(row)[0]))]
         const movie = results.data.movie
-        reply.status(200).send({id: movie.imdb_code, name: movie.title, rating: movie.rating, year: movie.year, length: movie.runtime, subtitles: subs});
+        const commentsCollection = this.mongo.db.collection("comments");
+        const comments = await commentsCollection.find({movie_id: id}).toArray()
+        reply.status(200).send({id: movie.imdb_code, name: movie.title, rating: movie.rating, year: movie.year, length: movie.runtime, subtitles: subs, comments: comments});
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: "Internal server error"});
+        reply.status(500).send({error: e.message})
     }
     
 }
 
-async function addMovies(req, reply) {
-    const collection = this.mongo.db.collection('movies');
-    await collection.insertOne(reply.body);
+async function getComments(req, reply) {
+    try {
+        const collection = this.mongo.db.collection("comments");
+        // await collection.drop()
+        const comments = await collection.find().sort({date: -1}).limit(10).toArray();
+        reply.status(200).send(comments);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message})
+    }
+}
+async function getComment(req, reply) {
+    try {
+        const collection = this.mongo.db.collection("comments");
+        const id = new this.mongo.ObjectId(req.params.id);
+        const comment = await collection.findOne(id);
+        delete comment['movie_id']
+        reply.status(200).send(comment);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message})
+    }
 }
 
-export default {getUsers, getUser, getMovies, addMovies, getMovie}
+async function postComment(req, reply) {
+    const date = new Date()
+    try {
+        const userCollection = this.mongo.db.collection("users");
+        const id = new this.mongo.ObjectId(req.user.id)
+        const user = await userCollection.findOne(id);
+        const collection = this.mongo.db.collection("comments");
+        const comments = await collection.insertOne({username: user.username, movie_id: req.body.movie_id, comment: req.body.comment, date: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ${date.toTimeString().slice(0, 8)}`})
+        reply.status(200).send(comments);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message})
+    }
+}
+async function patchComment(req, reply) {
+    try {
+        const commentId = new this.mongo.ObjectId(req.params.id);
+        const collection = this.mongo.db.collection("comments");
+        const comment = await collection.findOneAndUpdate(commentId, {$set: {comment: req.body.comment, username: req.body.username}});
+        if (!comment)
+            return reply.status(201).send({message: "Could not find the comment"});
+        reply.status(200).send({message: "Comment updated successfully"});
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message})
+    }
+}
+async function deleteComment(req, reply) {
+    try {
+        const commentId = new this.mongo.ObjectId(req.params.id);
+        const collection = this.mongo.db.collection("comments");
+        const comment = await collection.findOneAndDelete(commentId);
+        if (!comment)
+            return reply.status(201).send({message: "Could not find the comment"});
+        reply.status(200).send({message: "Comment deleted successfully"});
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message})
+    }
+}
+
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment}

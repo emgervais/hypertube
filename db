@@ -13,13 +13,17 @@ users:
 }
 movies
 {
-    id
-    video
-    name
-    summary
-    rating
-    length
-    audio language
-    cast
-    comments
+    id: string
+    torrent: torrent?
+    sub: {
+        "en": file
+    }
+}
+comments
+{
+    _id
+    movie: movieid
+    username: string
+    body: string
+    date: Date
 }
