@@ -54,6 +54,15 @@ async function modifyInfo(req, reply) {
         if (req.body.email && await collection.findOne({email: req.body.email}))
             return reply.status(409).send({error: "email already in use"})
         if (req.body.picture) {
+            if (user.picture) {
+                const previousFileName = path.basename(user.picture);
+                if (previousFileName !== "default.png") {
+                    const previousFilePath = path.join(process.cwd(), "src", "server", "assets", previousFileName);
+                    if (fs.existsSync(previousFilePath)) {
+                        fs.unlinkSync(previousFilePath);
+                    }
+                }
+            }
             const base64Data = req.body.picture.replace(/^data:image\/\w+;base64,/, "");
             if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64Data)) {
                 return reply.status(400).send({ error: "Invalid base64 image data" });

@@ -2,7 +2,7 @@ import { loginValidation } from "../schema/schema.js"
 import apiController from "../controllers/apiController.js"
 import authController from "../controllers/authController.js"
 import userController from "../controllers/userController.js"
-import {updateValidation, addCommentValidation, updateCommentValidation, getCommentValidation} from "../schema/apiSchema.js"
+import {updateValidation, addCommentValidation, updateCommentValidation, getCommentValidation, getMovieValidation} from "../schema/apiSchema.js"
 
 async function apiValidation(req, reply) {
     try {
@@ -26,6 +26,8 @@ async function apiRoutes (fastify, options) {
     fastify.patch('/users/:id', {preHandler: [fastify.authenticate, apiValidation], schema: updateValidation}, userController.modifyInfo)
     fastify.get('/movies', apiController.getMovies)
     fastify.get('/movies/:id', {schema: getCommentValidation}, apiController.getMovie)
+    fastify.get('/movies/name/:name', {schema: getMovieValidation}, apiController.getMovieName)
+    fastify.get('/movies/pop', apiController.getMoviePopularity)
     fastify.get('/comments', apiController.getComments)
     fastify.get('/comments/:id', {preHandler: [fastify.authenticate, apiValidation], schema: getCommentValidation}, apiController.getComment)
     fastify.patch('/comments/:id', {preHandler: [fastify.authenticate, apiValidation], schema: updateCommentValidation}, apiController.patchComment)

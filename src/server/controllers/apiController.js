@@ -51,9 +51,9 @@ async function getMovie(req, reply) {
         const id = req.params.id
         const res = await fetch(`https://yts.mx/api/v2/movie_details.json?imdb_id=${id}`);
         const results = await res.json();
-        const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`)
+        const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`);//fallback on second link if empty
         const html = await subPage.text();
-        const dom = new jsdom.JSDOM(html)
+        const dom = new jsdom.JSDOM(html);
         const document = dom.window.document;
 
         const rows = [...document.querySelectorAll('tbody tr')];
@@ -71,6 +71,29 @@ async function getMovie(req, reply) {
         reply.status(500).send({error: e.message})
     }
     
+}
+
+async function getMovieName(req, reply) {
+    try {
+        const name = req.params.name
+        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${name}`);
+        const results = await res.json();
+        reply.status(200).send(results.data.movies);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message});
+    }
+}
+
+async function getMoviePopularity(req, reply) {
+    try {
+        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?sort_by=download_count`);
+        const results = await res.json();
+        reply.status(200).send(results.data.movies);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message});
+    }
 }
 
 async function getComments(req, reply) {
@@ -138,4 +161,4 @@ async function deleteComment(req, reply) {
     }
 }
 
-export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment}
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieName, getMoviePopularity}

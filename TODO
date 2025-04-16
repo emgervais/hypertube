@@ -1,15 +1,5 @@
 frontend
 ---------------------
-    user
-    ------------
-    <!-- login -->
-    <!-- register -->
-    <!-- 2oauth -->
-    <!-- logout everywhere -->
-    <!-- preffered language -->
-    <!-- modify profile + profilepicture -->
-    <!-- see other user profile(thourgh username?) no email -->
-
     library
     -----------------
     search field (from two sources only video streaming)
@@ -32,16 +22,6 @@ frontend
 
 backend
 ------------------------
-    user management
-    ------------
-    <!-- register with username email full name password -->
-    <!-- omniauth->42->google->fb -->
-    <!-- login username + password -->
-    <!-- forget password email -->
-    <!-- logout -->
-    <!-- token? -->
-    <!-- valid password -->
-
     streaming
     --------------------
     resolutions
@@ -50,10 +30,6 @@ backend
     after download save on server for reusage. outdated 1 month
     if english sub available download and available for user
     if audio dont fit prefered and subtile in language autoamtic download
-
-    API
-    -------------------
-    Authenticated users are allowed to retrieve or update any profiles.
 
 security
 ------------------
