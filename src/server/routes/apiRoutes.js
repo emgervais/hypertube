@@ -27,7 +27,7 @@ async function apiRoutes (fastify, options) {
     fastify.get('/movies', apiController.getMovies)
     fastify.get('/movies/:id', {schema: getCommentValidation}, apiController.getMovie)
     fastify.get('/movies/name/:name', {schema: getMovieValidation}, apiController.getMovieName)
-    fastify.get('/movies/pop', apiController.getMoviePopularity)
+    fastify.get('/movies/pop/:page', apiController.getMoviePopularity)
     fastify.get('/comments', apiController.getComments)
     fastify.get('/comments/:id', {preHandler: [fastify.authenticate, apiValidation], schema: getCommentValidation}, apiController.getComment)
     fastify.patch('/comments/:id', {preHandler: [fastify.authenticate, apiValidation], schema: updateCommentValidation}, apiController.patchComment)

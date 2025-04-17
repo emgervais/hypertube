@@ -1,12 +1,11 @@
+import {Star} from '../assets/icon.jsx'
 import { useNavigate } from 'react-router-dom'
-import {useFetchWithAuth} from '../utils/fetchProtected.js'
-import {useAuth} from './auth/authContext.jsx'
 
 export default function MovieCard({movie}) {
-
+    const navigate = useNavigate();
     return (
-        <div>
-            <h4>{movie.title}</h4>
+        <div className='flex flex-col justify-center hover:cursor-pointer' onClick={() => navigate('/movie', {state:{movie:movie}})}>
+            <h4 className='font-bold pb-2 text-center  truncate hover:whitespace-normal hover:overflow-visible'>{movie.title}<div className='flex justify-center items-center'>{`(${movie.year}) `}{movie.rating}<Star/></div></h4>
             <img src={movie.medium_cover_image}></img>
         </div>
     )

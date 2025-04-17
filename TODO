@@ -2,14 +2,9 @@ frontend
 ---------------------
     library
     -----------------
-    search field (from two sources only video streaming)
-    video thumbnail list
-    if search -> sorted per name
-    no serach -> most popular sorted by anything
-    thumbnail have -> name, prod year, imdb rating, cover image, watch or unwached
-    infinite load async
-    filter + sort for name, genre, imdb, prodyear, etc?
-
+    two sources only video streaming
+    watch or unwached
+    filter + sort for name, genre, imdb, prodyear, etc
     video
     -------------------------
     video player, summary, producer, actors, prodyear, length, rating, coverimage
@@ -35,4 +30,3 @@ security
 ------------------
 xss
 unwanted upload
-form validation

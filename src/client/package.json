@@ -6,6 +6,9 @@
   },
   "type": "module",
   "dependencies": {
-    "fs": "^0.0.1-security"
+    "@headlessui/react": "^2.2.2",
+    "fs": "^0.0.1-security",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
   }
 }

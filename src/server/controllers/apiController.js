@@ -76,7 +76,7 @@ async function getMovie(req, reply) {
 async function getMovieName(req, reply) {
     try {
         const name = req.params.name
-        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${name}`);
+        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${name}&limit=50`);
         const results = await res.json();
         reply.status(200).send(results.data.movies);
     } catch(e) {
@@ -87,9 +87,9 @@ async function getMovieName(req, reply) {
 
 async function getMoviePopularity(req, reply) {
     try {
-        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?sort_by=download_count`);
+        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?sort_by=download_count&limit=50&page=${req.params.page}`);
         const results = await res.json();
-        reply.status(200).send(results.data.movies);
+        reply.status(200).send({movies: results.data.movies, page: results.data.page_number});
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message});
