@@ -24,14 +24,18 @@ export default function Library() {
     const [movieList, setMovieList] = useState([]);
     const [page, setPage] = useState(1);
     const [done, setDone] = useState(false);
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(false);
+    const [filters, setFilters] = useState({});
 
     
   const fetchMore = () => {
     if (loading) return;
     setLoading(true);
     setTimeout(() => {
-      fetchPop();
+      if (filters)
+        fetchFilter();
+      else
+        fetchPop();
       setLoading(false);
     }, 1000);
   };
@@ -46,17 +50,29 @@ export default function Library() {
             return setDone(true);
         setPage(result.page + 1);
     }
+
     useEffect(() => {
         fetchPop();
     }, [])
-    useInfiniteScroll(fetchMore)
+
+    useInfiniteScroll(fetchMore);
+
     const handleSearch = async (event) => {
         event.preventDefault()
         const name = event.target.searchMovie.value;
-        const res = await fetch(`http://localhost:8080/api/movies/name/${name}`);
-        const movies = await res.json();
-        setMovieList(movies);
+        setFilters({...filters, name: name});
     }
+
+    useEffect(() => {
+        const fetchFilter = async () => {
+            const searchQuery = "";
+            const res = await fetch(`http://localhost:8080/api/movies/search/${searchQuery}`);
+            const movies = await res.json();
+            setMovieList(movies);
+        }
+        fetchFilter();
+    }, [filters]);
+
     return (
         <div className='flex flex-col flex-5 m-5 items-left h-fit' >
             <header className='flex justify-center'>
@@ -67,7 +83,7 @@ export default function Library() {
                     </form>
                 </div>
                 <ul className='flex space-between'>
-                    <li className='ml-3 mr-3 flex items-center'><DropDown options={["0", "1", "2", "3", "4", "5"]} main="Rating"/></li>
+                    <li className='ml-3 mr-3 flex items-center'><DropDown options={["1", "2", "3", "4"]} main="Rating"/></li>
                     <li className='ml-3 mr-3 flex items-center'><DropDown options={["action", "adventure", "animation", "comedy", "anime", "crime", "documentary", "drama", "sci-fi", "romance"]} main="Genre"/></li>
                     <li className='ml-3 mr-3 flex items-center'><DropDown options={["1980", "1990", "2000", "2010", "2020"]} main="Year"/></li>
                 </ul>

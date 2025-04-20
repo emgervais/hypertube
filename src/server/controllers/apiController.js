@@ -73,9 +73,29 @@ async function getMovie(req, reply) {
     
 }
 
-async function getMovieName(req, reply) {
+async function getTVShow(req, reply) {
     try {
-        const name = req.params.name
+        const res = await fetch(`https://fusme.link/movies/1?`);
+        const results = await res.json();
+        reply.status(200).send(results);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e.message});
+    }
+}
+async function getMovieFilter(req, reply) {
+    const names = {
+        name: "query_term=",
+        rating: "minimum_rating=",
+        genre: "genre=",
+        quality: "quality=",
+        sort: "sort_by="
+    }
+    let query = "";
+    try {
+        for (const param in req.query) {
+            
+        }
         const res = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${name}&limit=50`);
         const results = await res.json();
         reply.status(200).send(results.data.movies);
@@ -161,4 +181,4 @@ async function deleteComment(req, reply) {
     }
 }
 
-export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieName, getMoviePopularity}
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieFilter, getMoviePopularity, getTVShow}

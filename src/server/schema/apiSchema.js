@@ -15,15 +15,20 @@ const updateCommentSchema = S.object()
     .prop('comment', S.string().required())
 const getCommentSchema = S.object()
     .prop('id', S.string().minLength(24).required())
+
 const getMovieSchema = S.object()
-    .prop('name', S.string().minLength(1).required())
+    .prop('name', S.string())
+    .prop('rating', S.string())
+    .prop('genre', S.string())
+    .prop('year', S.string())
+    .prop('sort', S.string())
 // const updateCommentSchema = S.object()
 //     .prop('comment', S.string().required())
 
 export const updateValidation = {body: updateSchema}
 export const addCommentValidation = {body: addCommentSchema}
 export const getCommentValidation = {params: getCommentSchema}
-export const getMovieValidation = {params: getMovieSchema}
+export const getMovieValidation = {query: getMovieSchema}
 export const updateCommentValidation = {body: updateCommentSchema, params: getCommentSchema}
 // export const updateCommentValidation = {body: updateCommentSchema}
 
