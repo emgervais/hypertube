@@ -18,10 +18,11 @@ const getCommentSchema = S.object()
 
 const getMovieSchema = S.object()
     .prop('name', S.string())
-    .prop('rating', S.string())
+    .prop('rating', S.integer())
     .prop('genre', S.string())
-    .prop('year', S.string())
+    .prop('year', S.integer())
     .prop('sort', S.string())
+    .prop('page', S.integer())
 // const updateCommentSchema = S.object()
 //     .prop('comment', S.string().required())
 

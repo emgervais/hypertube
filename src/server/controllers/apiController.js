@@ -88,7 +88,7 @@ async function getMovie(req, reply) {
 async function getMovieFilter(req, reply) {
     try {
         const movies = await fetchYTS(req.query);
-        reply.status(200).send(movies);
+        reply.status(200).send(movies || []);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message});

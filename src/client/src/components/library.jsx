@@ -22,53 +22,41 @@ function useInfiniteScroll(callback, offset = 300) {
 
 export default function Library() {
     const [movieList, setMovieList] = useState([]);
-    const [page, setPage] = useState(1);
     const [done, setDone] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [filters, setFilters] = useState({});
+    const [filters, setFilters] = useState({sort: "download_count", page: 1});
 
     
   const fetchMore = () => {
     if (loading) return;
     setLoading(true);
     setTimeout(() => {
-      if (Object.keys(filters).length !== 0)
-        fetchFilter();
-      else
-        fetchPop();
+      setFilters({...filters, page: filters.page + 1});
       setLoading(false);
     }, 1000);
   };
-
-    const fetchPop = async () => {
-        if(done)
-            return;
-        const res = await fetch(`http://localhost:8080/api/movies/filter?sort=download_count&page=${page}`);
-        const result = await res.json();
-        if (!result.length)
-            return setDone(true);
-        setMovieList(movieList.concat(result));
-        setPage(page + 1);
-    }
-
-    useEffect(() => {
-        fetchPop();
-    }, [])
 
     useInfiniteScroll(fetchMore);
 
     const handleSearch = async (event) => {
         event.preventDefault()
         const name = event.target.searchMovie.value;
-        setFilters({...filters, name: name});
+        setMovieList([]);
+        setDone(false);
+        setFilters({...filters, name: name, page: 1});
     }
 
     useEffect(() => {
         const fetchFilter = async () => {
-            const searchQuery = "";
-            const res = await fetch(`http://localhost:8080/api/movies/filter?name=${filters.name}`);
+            if (done) return;
+            const url = new URL('http://localhost:8080/api/movies/filter');
+            for (const [key, value] of Object.entries(filters))
+                url.searchParams.set(key, value);
+            const res = await fetch(url);
             const movies = await res.json();
-            setMovieList(movies);
+            if (movies.length === 0)
+                return setDone(true);
+            setMovieList(movieList.concat(movies));
         }
         fetchFilter();
     }, [filters]);
