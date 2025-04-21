@@ -15,8 +15,10 @@ export default async function fetchYTS(params) {
             continue;
         url.searchParams.set(names[key], value);
     }
+    if(params.sort && ["title", "length"].includes(params.sort))
+        url.searchParams.set("order_by", "asc");
     url.searchParams.set("limit", 50);
     const res = await fetch(url);
     const movies = await res.json();
-    return (movies.data.movies)
+    return (movies.data.movies);
 }

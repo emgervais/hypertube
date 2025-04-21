@@ -18,7 +18,7 @@ function useInfiniteScroll(callback, offset = 300) {
       window.addEventListener('scroll', handleScroll);
       return () => window.removeEventListener('scroll', handleScroll);
     }, [handleScroll]);
-  }
+}
 
 export default function Library() {
     const [movieList, setMovieList] = useState([]);
@@ -26,7 +26,10 @@ export default function Library() {
     const [loading, setLoading] = useState(false);
     const [filters, setFilters] = useState({sort: "download_count", page: 1});
 
-    
+    const resetList = () => {
+        setDone(false);
+        setMovieList([]);
+    }
   const fetchMore = () => {
     if (loading) return;
     setLoading(true);
@@ -39,24 +42,30 @@ export default function Library() {
     useInfiniteScroll(fetchMore);
 
     const handleSearch = async (event) => {
-        event.preventDefault()
+        event.preventDefault();
         const name = event.target.searchMovie.value;
-        setMovieList([]);
-        setDone(false);
+        resetList();
         setFilters({...filters, name: name, page: 1});
     }
 
     useEffect(() => {
         const fetchFilter = async () => {
             if (done) return;
-            const url = new URL('http://localhost:8080/api/movies/filter');
-            for (const [key, value] of Object.entries(filters))
-                url.searchParams.set(key, value);
-            const res = await fetch(url);
-            const movies = await res.json();
-            if (movies.length === 0)
-                return setDone(true);
-            setMovieList(movieList.concat(movies));
+            try {
+                const url = new URL('http://localhost:8080/api/movies/filter');
+                for (const [key, value] of Object.entries(filters)) {
+                    url.searchParams.set(key, value);
+                }
+                const res = await fetch(url);
+                const movies = await res.json();
+                if (movies.length === 0) {
+                    setDone(true);
+                    return;
+                }
+                setMovieList(prev => prev.concat(movies));
+            } catch(e) {
+                console.error("Error fetching movies: ", e);
+            }
         }
         fetchFilter();
     }, [filters]);
@@ -71,11 +80,11 @@ export default function Library() {
                     </form>
                 </div>
                 <ul className='flex space-between'>
-                    <li className='ml-3 mr-3 flex items-center'><DropDown options={["1", "2", "3", "4"]} main="Rating"/></li>
-                    <li className='ml-3 mr-3 flex items-center'><DropDown options={["action", "adventure", "animation", "comedy", "anime", "crime", "documentary", "drama", "sci-fi", "romance"]} main="Genre"/></li>
-                    <li className='ml-3 mr-3 flex items-center'><DropDown options={["1980", "1990", "2000", "2010", "2020"]} main="Year"/></li>
+                    <li className='ml-3 mr-3 flex items-center'><DropDown reset={resetList} setFilters={setFilters} options={["2", "4", "6", "8"]} main="Rating"/></li>
+                    <li className='ml-3 mr-3 flex items-center'><DropDown reset={resetList} setFilters={setFilters} options={["action", "adventure", "animation", "comedy", "anime", "crime", "documentary", "drama", "sci-fi", "romance"]} main="Genre"/></li>
+                    <li className='ml-3 mr-3 flex items-center'><DropDown reset={resetList} setFilters={setFilters} options={["480p", "720p", "1080p", "2160p", "3D"]} main="Quality"/></li>
                 </ul>
-                <DropDown options={["Name", "Rating", "Year", "Length", "Peers", "Seeders"]} main="Sort by"/>
+                <DropDown reset={resetList} setFilters={setFilters} options={["Title", "Rating", "Year", "Length"]} main="Sort by"/>
             </header>
             <main className='grid grid-cols-6 gap-5 w-9/10 mt-5'>
                 {movieList.map((movie) => {
