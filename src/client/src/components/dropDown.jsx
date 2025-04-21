@@ -1,7 +1,6 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 
 export default function DropDown({main, options}) {
-    console.log(options)
   return (
     <Menu as="div" className="relative inline-block text-left">
         <MenuButton className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-gray-200 shadow-xs hover:bg-indigo-500 focus:outline-none">

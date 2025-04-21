@@ -32,7 +32,7 @@ export default function Library() {
     if (loading) return;
     setLoading(true);
     setTimeout(() => {
-      if (filters)
+      if (Object.keys(filters).length !== 0)
         fetchFilter();
       else
         fetchPop();
@@ -43,12 +43,12 @@ export default function Library() {
     const fetchPop = async () => {
         if(done)
             return;
-        const res = await fetch(`http://localhost:8080/api/movies/pop/${page}`);
+        const res = await fetch(`http://localhost:8080/api/movies/filter?sort=download_count&page=${page}`);
         const result = await res.json();
-        setMovieList(movieList.concat(result.movies));
-        if (!result.movies.length)
+        if (!result.length)
             return setDone(true);
-        setPage(result.page + 1);
+        setMovieList(movieList.concat(result));
+        setPage(page + 1);
     }
 
     useEffect(() => {
@@ -66,7 +66,7 @@ export default function Library() {
     useEffect(() => {
         const fetchFilter = async () => {
             const searchQuery = "";
-            const res = await fetch(`http://localhost:8080/api/movies/search/${searchQuery}`);
+            const res = await fetch(`http://localhost:8080/api/movies/filter?name=${filters.name}`);
             const movies = await res.json();
             setMovieList(movies);
         }

@@ -1,5 +1,5 @@
 import jsdom from 'jsdom'
-
+import fetchYTS from '../serilizers/ytsSerilizer.js'
 async function getUsers(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -43,8 +43,8 @@ async function getMovies(req, reply) {
         console.log(e);
         reply.status(500).send({error: e.message})
     }
-    
 }
+
 async function getMovie(req, reply) {
     
     try {
@@ -72,44 +72,23 @@ async function getMovie(req, reply) {
     }
     
 }
+/*{
+ title,
+ year,
+ synopsis,
+ runtime,
+ genres,
+ images,
+ rating,
+ torrents
+ {
+ filter for popcorn will be done on results. ross check current list and past list for duplicate (set on id?)
+*/
 
-async function getTVShow(req, reply) {
-    try {
-        const res = await fetch(`https://fusme.link/movies/1?`);
-        const results = await res.json();
-        reply.status(200).send(results);
-    } catch(e) {
-        console.log(e);
-        reply.status(500).send({error: e.message});
-    }
-}
 async function getMovieFilter(req, reply) {
-    const names = {
-        name: "query_term=",
-        rating: "minimum_rating=",
-        genre: "genre=",
-        quality: "quality=",
-        sort: "sort_by="
-    }
-    let query = "";
     try {
-        for (const param in req.query) {
-            
-        }
-        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${name}&limit=50`);
-        const results = await res.json();
-        reply.status(200).send(results.data.movies);
-    } catch(e) {
-        console.log(e);
-        reply.status(500).send({error: e.message});
-    }
-}
-
-async function getMoviePopularity(req, reply) {
-    try {
-        const res = await fetch(`https://yts.mx/api/v2/list_movies.json?sort_by=download_count&limit=50&page=${req.params.page}`);
-        const results = await res.json();
-        reply.status(200).send({movies: results.data.movies, page: results.data.page_number});
+        const movies = await fetchYTS(req.query);
+        reply.status(200).send(movies);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message});
@@ -181,4 +160,4 @@ async function deleteComment(req, reply) {
     }
 }
 
-export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieFilter, getMoviePopularity, getTVShow}
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieFilter}
