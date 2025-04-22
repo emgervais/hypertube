@@ -1,5 +1,3 @@
-
-
 export default async function fetchYTS(params) {
     const url = new URL("https://yts.mx/api/v2/list_movies.json")
     const names = {
@@ -15,7 +13,7 @@ export default async function fetchYTS(params) {
             continue;
         url.searchParams.set(names[key], value);
     }
-    if(params.sort && ["title", "length"].includes(params.sort))
+    if(params.sort && "title" === params.sort)
         url.searchParams.set("order_by", "asc");
     url.searchParams.set("limit", 50);
     const res = await fetch(url);

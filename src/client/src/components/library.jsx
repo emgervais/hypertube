@@ -84,7 +84,7 @@ export default function Library() {
                     <li className='ml-3 mr-3 flex items-center'><DropDown reset={resetList} setFilters={setFilters} options={["action", "adventure", "animation", "comedy", "anime", "crime", "documentary", "drama", "sci-fi", "romance"]} main="Genre"/></li>
                     <li className='ml-3 mr-3 flex items-center'><DropDown reset={resetList} setFilters={setFilters} options={["480p", "720p", "1080p", "2160p", "3D"]} main="Quality"/></li>
                 </ul>
-                <DropDown reset={resetList} setFilters={setFilters} options={["Title", "Rating", "Year", "Length"]} main="Sort by"/>
+                <DropDown reset={resetList} setFilters={setFilters} options={["Title", "Rating", "Year"]} main="Sort by"/>
             </header>
             <main className='grid grid-cols-6 gap-5 w-9/10 mt-5'>
                 {movieList.map((movie) => {

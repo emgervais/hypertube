@@ -1,5 +1,6 @@
 import jsdom from 'jsdom'
 import fetchYTS from '../serilizers/ytsSerilizer.js'
+import fetchPopcorn from "../serilizers/popcornSerilizer.js"
 async function getUsers(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -87,7 +88,8 @@ async function getMovie(req, reply) {
 
 async function getMovieFilter(req, reply) {
     try {
-        const movies = await fetchYTS(req.query);
+        // const movies = await fetchYTS(req.query);
+        const movies = await fetchPopcorn(req.query)
         reply.status(200).send(movies || []);
     } catch(e) {
         console.log(e);
