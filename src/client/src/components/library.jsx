@@ -62,7 +62,7 @@ export default function Library() {
                     setDone(true);
                     return;
                 }
-                setMovieList(prev => prev.concat(movies));
+                setMovieList(prev => prev.concat(movies).filter((movie, index, self) => index === self.findIndex(m => m.id === movie.id)));
             } catch(e) {
                 console.error("Error fetching movies: ", e);
             }

@@ -20,6 +20,7 @@ export default async function fetchPopcorn(params) {
     }
     if(params.sort && "title" === params.sort)
         url.searchParams.set("order", "1");
+    console.log("popUrl: ", url.toString())
     const res = await fetch(url);
     const movies = await res.json();
     const results = movies.filter((movie) => {
@@ -48,8 +49,39 @@ export default async function fetchPopcorn(params) {
         year: movie.year,
         runtime: movie.runtime,
         genres: movie.genres,
-        image: movie.images.banner,
+        image: movie.images.poster,
         rating: movie.rating.percentage / 10,
         torrents: movie.torrents
     })));
 }
+
+// [{
+//     "_id":"UniqueString1",
+//     "imdb_id":"UniqueString1",
+//     "title":"String",
+//     "year":0,
+//     "slug":"String",
+//     "synopsis":"String",
+//     "runtime":0,
+//     "rating":{"percentage":0,"watching":0,"votes":0}
+//     "images":{"banner":"String"
+//         "fanart":"String"
+//         "poster":"String"}
+//     "genres":["String"]
+//     "type":"String"
+//     "language":"String"
+//     "released":0
+//     "trailer":"String"
+//     "certification":"String"
+//     "torrents":{"en":{"1080p":{"provider":"String"
+//         "filesize":"String"
+//         "size":0
+//         "peer":0
+//         "seed":0
+//         "url":"String"}
+//     "720p":{"provider":"String"
+//         "filesize":"String"
+//         "size":0
+//         "peer":0
+//         "seed":0
+//         "url":"String"}}}}]

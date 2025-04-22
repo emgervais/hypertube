@@ -16,6 +16,7 @@ export default async function fetchYTS(params) {
     if(params.sort && "title" === params.sort)
         url.searchParams.set("order_by", "asc");
     url.searchParams.set("limit", 50);
+    console.log("TYSUrl: ", url.toString())
     const res = await fetch(url);
     const movies = await res.json();
     return (movies.data.movies.map((movie) => ({
@@ -24,7 +25,7 @@ export default async function fetchYTS(params) {
             year: movie.year,
             runtime: movie.runtime,
             genres: movie.genres,
-            image: movie.background_image_original,
+            image: movie.medium_cover_image,
             rating: movie.rating,
             torrents: movie.torrents
         })));

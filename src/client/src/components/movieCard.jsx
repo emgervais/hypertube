@@ -24,7 +24,7 @@ export default function MovieCard({movie}) {
   </div>
 
   <img
-    src={movie.medium_cover_image}
+    src={movie.image}
     alt={movie.title}
     className="mt-2 rounded-md object-cover"
   />

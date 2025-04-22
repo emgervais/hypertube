@@ -80,8 +80,11 @@ async function getMovieFilter(req, reply) {
             fetchPopcorn(req.query),
             fetchYTS(req.query),
         ]);
-        const fullList = moviesPop.concat(moviesTYS);
-        reply.status(200).send(fullList);
+        const fullList = moviesTYS.concat(moviesPop);
+        const clearList = fullList.filter((movie, index, self) => 
+            index === self.findIndex(m => m.id === movie.id)
+        );
+        reply.status(200).send(clearList);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message});
