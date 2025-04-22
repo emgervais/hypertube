@@ -1,4 +1,5 @@
 export default async function fetchYTS(params) {
+    try {
     const url = new URL("https://yts.mx/api/v2/list_movies.json")
     const names = {
         name: "query_term",
@@ -15,32 +16,26 @@ export default async function fetchYTS(params) {
     }
     if(params.sort && "title" === params.sort)
         url.searchParams.set("order_by", "asc");
-    url.searchParams.set("limit", 50);
-    console.log("TYSUrl: ", url.toString())
-    const res = await fetch(url);
-    const movies = await res.json();
-    return (movies.data.movies.map((movie) => ({
-            id: movie.imdb_code,
-            title: movie.title,
-            year: movie.year,
-            runtime: movie.runtime,
-            genres: movie.genres,
-            image: movie.medium_cover_image,
-            rating: movie.rating,
-            torrents: movie.torrents
-        })));
-}
 
-/*{
- title,
- year,
- runtime,
- genres,
- images,
- rating,
- torrents
- {
-*/
+    url.searchParams.set("limit", 50);
+    // console.log("TYSUrl: ", url.toString())
+        const res = await fetch(url);
+        const movies = await res.json();
+        return (movies.data.movies.map((movie) => ({
+                id: movie.imdb_code,
+                title: movie.title,
+                year: movie.year,
+                runtime: movie.runtime,
+                genres: movie.genres,
+                image: movie.medium_cover_image,
+                rating: movie.rating,
+                torrents: movie.torrents
+            })));
+    } catch(e) {
+        console.log(e)
+        return ([])
+    }
+}
 
 // "torrents": [
 //     {

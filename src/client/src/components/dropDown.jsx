@@ -10,7 +10,7 @@ export default function DropDown({reset, setFilters, main, options}) {
     setActive(prev => (prev === option ? null : option));
     reset();
     setFilters(prev => {
-      const copy = {...prev}
+      const copy = {...prev, page: 1}
       if (prev[key] === value) {
         if(key === "sort")
           copy[key] = "download_count"

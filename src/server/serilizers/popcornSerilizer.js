@@ -1,4 +1,5 @@
 export default async function fetchPopcorn(params) {
+    try {
     const url = new URL(`https://jfper.link/movies/${params.page || 1}`)
     const names = {
         name: "keywords",
@@ -20,6 +21,9 @@ export default async function fetchPopcorn(params) {
     }
     if(params.sort && "title" === params.sort)
         url.searchParams.set("order", "1");
+    else
+        url.searchParams.set("order", "-1");
+
     console.log("popUrl: ", url.toString())
     const res = await fetch(url);
     const movies = await res.json();
@@ -53,6 +57,10 @@ export default async function fetchPopcorn(params) {
         rating: movie.rating.percentage / 10,
         torrents: movie.torrents
     })));
+    } catch(e) {
+        console.log(e);
+        return ([]);
+    }
 }
 
 // [{
