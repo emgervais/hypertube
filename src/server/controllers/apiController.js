@@ -52,7 +52,7 @@ async function getMovie(req, reply) {
         const id = req.params.id
         const res = await fetch(`https://yts.mx/api/v2/movie_details.json?imdb_id=${id}`);
         const results = await res.json();
-        const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`);//fallback on second link if empty
+        const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`);
         const html = await subPage.text();
         const dom = new jsdom.JSDOM(html);
         const document = dom.window.document;
@@ -73,30 +73,20 @@ async function getMovie(req, reply) {
     }
     
 }
-/*{
- title,
- year,
- synopsis,
- runtime,
- genres,
- images,
- rating,
- torrents
- {
- filter for popcorn will be done on results. ross check current list and past list for duplicate (set on id?)
-*/
 
 async function getMovieFilter(req, reply) {
     try {
-        // const movies = await fetchYTS(req.query);
-        const movies = await fetchPopcorn(req.query)
-        reply.status(200).send(movies || []);
+        const [moviesPop, moviesTYS] = await Promise.all([
+            fetchPopcorn(req.query),
+            fetchYTS(req.query),
+        ]);
+        const fullList = moviesPop.concat(moviesTYS);
+        reply.status(200).send(fullList);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message});
     }
 }
-
 async function getComments(req, reply) {
     try {
         const collection = this.mongo.db.collection("comments");

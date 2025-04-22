@@ -20,7 +20,6 @@ export default async function fetchPopcorn(params) {
     }
     if(params.sort && "title" === params.sort)
         url.searchParams.set("order", "1");
-    console.log(url.toString())
     const res = await fetch(url);
     const movies = await res.json();
     const results = movies.filter((movie) => {
@@ -43,5 +42,14 @@ export default async function fetchPopcorn(params) {
         }
         return true;
     });
-    return (results);
+    return (results.map((movie) => ({
+        id: movie.imdb_id,
+        title: movie.title,
+        year: movie.year,
+        runtime: movie.runtime,
+        genres: movie.genres,
+        image: movie.images.banner,
+        rating: movie.rating.percentage / 10,
+        torrents: movie.torrents
+    })));
 }
