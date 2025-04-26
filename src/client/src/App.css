@@ -3,7 +3,8 @@
 #root {
   /* max-width: 1280px; */
   margin: 0 auto;
-  height: fit-content;
+  height: 100vh;
   /* padding: 2rem; */
   text-align: center;
+  /* min-height: 100vh; */
 }

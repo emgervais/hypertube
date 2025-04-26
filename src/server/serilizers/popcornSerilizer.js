@@ -24,7 +24,7 @@ export default async function fetchPopcorn(params) {
     else
         url.searchParams.set("order", "-1");
 
-    console.log("popUrl: ", url.toString())
+    // console.log("popUrl: ", url.toString())
     const res = await fetch(url);
     const movies = await res.json();
     const results = movies.filter((movie) => {

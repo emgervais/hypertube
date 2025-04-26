@@ -79,7 +79,19 @@ async function modifyInfo(req, reply) {
         console.log(e);
         reply.status(500).send({error: "Server error"})
     }
+}
+
+async function getWatchedMovie(req, reply) {
+    try {
+        const collection = this.mongo.db.collection('users');
+        const id = new this.mongo.ObjectId(req.user.id);
+        const user = await collection.findOne(id);
+        reply.status(200).send(user.watchedMovie || []);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e});
+    }
 
 }
 
-export default {deleteUser, getUsers, getUser, modifyInfo}
+export default {deleteUser, getUsers, getUser, modifyInfo, getWatchedMovie}

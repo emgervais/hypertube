@@ -6,6 +6,7 @@ async function userRoutes (fastify, options) {
     fastify.get('/:username', {preHandler: fastify.authenticate, schema:{hide:true}}, userController.getUser)
     fastify.get('/delete/:id', {schema: {hide:true}}, userController.deleteUser)
     fastify.put('/changeInfo',{preHandler: fastify.authenticate, schema: updateValidation}, userController.modifyInfo)
+    fastify.get('/getWatchedMovie',{preHandler: fastify.authenticate}, userController.getWatchedMovie);
 }
 
 export default userRoutes;

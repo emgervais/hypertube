@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import MovieCard from './movieCard';
 import DropDown from './dropDown'
-
+import { useFetchWithAuth } from '../utils/fetchProtected';
 
 function useInfiniteScroll(callback, offset = 300) {
     const handleScroll = useCallback(() => {
@@ -25,6 +25,8 @@ export default function Library() {
     const [done, setDone] = useState(false);
     const [loading, setLoading] = useState(false);
     const [filters, setFilters] = useState({sort: "download_count", page: 1});
+    const [watched, setWatched] = useState([]);
+    const fetchProtected = useFetchWithAuth();
 
     const resetList = () => {
         setDone(false);
@@ -47,6 +49,15 @@ export default function Library() {
         resetList();
         setFilters({...filters, name: name, page: 1});
     }
+
+    useEffect(() => {
+        const init = async () => {
+            const res = await fetchProtected('/user/getWatchedMovie');
+            const watched = await res.json();
+            setWatched(watched);
+        }
+        init();
+    }, []);
 
     useEffect(() => {
         const fetchFilter = async () => {
@@ -88,7 +99,7 @@ export default function Library() {
             </header>
             <main className='grid grid-cols-6 gap-5 w-9/10 mt-5'>
                 {movieList.map((movie) => {
-                    return (<MovieCard movie={movie} isWatched={false}/>)
+                    return (<MovieCard movie={movie} isWatched={watched.includes(movie.id)}/>)
                 })}
             </main>
         </div>

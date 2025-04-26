@@ -48,7 +48,7 @@ async function register(req, reply) {
             return reply.status(409).send({error: 'Password is invalid'});
 
         const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
-        const user = await collection.insertOne({...req.body, password: hash, picture: "http://localhost:8080/images/default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false, isAdmin: false});
+        const user = await collection.insertOne({...req.body, password: hash, picture: "http://localhost:8080/images/default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false, isAdmin: false, watchedMovie: []});
         login({body: {username: user.username, password: req.body.password}}, reply)
     } catch(e) {
         reply.status(500).send(e);
@@ -191,7 +191,9 @@ async function oauth42Callback(req, reply) {
                 language: 'en',
                 resetToken: null,
                 resetExpire: null,
-                isOauth: true
+                isOauth: true,
+                isAdmin: false,
+                watchedMovie: []
             });
             token = await setToken(createdUser.insertedId, username, reply, req);
         }
@@ -239,7 +241,9 @@ async function oauthGoogleCallback (req, reply) {
           language: 'en',
           resetToken: null,
           resetExpire: null,
-          isOauth: true
+          isOauth: true,
+          isAdmin: false,
+          watchedMovie: []
         });
         token = await setToken(createdUser._id, createdUser.username, reply, req);
       }

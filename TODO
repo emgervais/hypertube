@@ -1,10 +1,5 @@
 frontend
 ---------------------
-    library
-    -----------------
-    two sources only video streaming
-    watch or unwached
-    filter + sort for name, genre, imdb, prodyear, etc
     video
     -------------------------
     video player, summary, producer, actors, prodyear, length, rating, coverimage

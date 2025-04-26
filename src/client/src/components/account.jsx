@@ -150,7 +150,7 @@ export default function Account() {
 
     const accountActions = { userData, setError, setActiveField, setUserData, updateUsername };
     return (
-    <div className='flex grow-5 flex-col p-5'>
+    <div className='flex grow-5 flex-col p-5 h-full'>
     <header className='flex justify-center'>
         <form className='flex' onSubmit={handleSearch}>
             <input className='border-solid border-1 border-inherit rounded-md text-center' id="searchUsername" name="searchUsername" type="searchUsername" required autoComplete="searchUsername" placeholder="Search an account"></input>

@@ -1,7 +1,7 @@
-import {Star} from '../assets/icon.jsx'
+import {Star, Eye} from '../assets/icon.jsx'
 import { useNavigate } from 'react-router-dom'
 
-export default function MovieCard({movie}) {
+export default function MovieCard({movie, isWatched}) {
     const navigate = useNavigate();
     return (
 <div
@@ -20,6 +20,7 @@ export default function MovieCard({movie}) {
     <div className="flex justify-center items-center gap-1 text-gray-400 text-sm">
       {`(${movie.year})`} {movie.rating}
       <Star />
+    {isWatched && <Eye />}
     </div>
   </div>
 
