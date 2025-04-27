@@ -1,333 +1,286 @@
 import dgram from 'dgram'
-import { Buffer } from 'buffer'
-import {URL} from 'url'
+import { URL } from 'url'
 import fs from 'fs'
 import bencode from 'bencode'
 import crypto from 'crypto'
 import net from 'net'
 
 class BitTorrentClient {
-    constructor() {
-        this.peer_id = null
+  constructor() {
+    this.peer_id        = null
+    this.torrent        = null
+    this.totalPieces    = 0
+    this.ownPieces      = new Set()
+    this.requestedPieces= new Set()
+    this.peerSockets    = []
+    this.unchoked       = new Set()
+    this.peersHave      = {}
+  }
+
+  buildConnReq() {
+    const buf = Buffer.alloc(16)
+    buf.writeUInt32BE(0x417, 0)           // magic
+    buf.writeUInt32BE(0x27101980, 4)
+    buf.writeUInt32BE(0, 8)               // action = connect
+    crypto.randomBytes(4).copy(buf, 12)   // transaction
+    return buf
+  }
+
+  buildAnnounceReq(connId) {
+    const t = this.torrent
+    const buf = Buffer.alloc(98)
+    connId.copy(buf,     0)               // connection_id
+    buf.writeUInt32BE(1, 8)               // action = announce
+    crypto.randomBytes(4).copy(buf, 12)   // transaction
+    this.infoHash().copy(buf, 16)         // info_hash
+    this.genId().copy(buf, 36)            // peer_id
+    Buffer.alloc(8).copy(buf, 56)         // downloaded
+    this.size().copy(buf, 64)             // left
+    Buffer.alloc(8).copy(buf, 72)         // uploaded
+    buf.writeUInt32BE(0, 80)              // event
+    buf.writeUInt32BE(0, 84)              // ip
+    crypto.randomBytes(4).copy(buf, 88)   // key
+    buf.writeInt32BE(-1, 92)              // num_want
+    buf.writeUInt16BE(6881, 96)           // port
+    return buf
+  }
+
+  infoHash() {
+    const info = bencode.encode(this.torrent.info)
+    return crypto.createHash('sha1').update(info).digest()
+  }
+
+  size() {
+    let total = this.torrent.info.length
+    if (this.torrent.info.files)
+      total = this.torrent.info.files.reduce((a,f)=>a+f.length,0)
+    const buf = Buffer.alloc(8)
+    buf.writeBigUInt64BE(BigInt(total))
+    return buf
+  }
+
+  parseConnection(res) {
+    return {
+      connectionId: res.slice(8,16)
+    }
+  }
+
+  parseAnnounce(res) {
+    const peersBuf = res.slice(20)
+    const peers = []
+    for (let i = 0; i < peersBuf.length; i += 6) {
+      const ip = `${peersBuf[i]}.${peersBuf[i+1]}.${peersBuf[i+2]}.${peersBuf[i+3]}`
+      const port = peersBuf.readUInt16BE(i+4)
+      peers.push({ip,port})
+    }
+    return peers
+  }
+
+  udpSend(sock, buf, rawUrl) {
+    const url = URL.parse(rawUrl)
+    sock.send(buf, 0, buf.length, +url.port, url.hostname)
+  }
+
+  async getPeers(torrentPath) {
+    this.torrent = bencode.decode(fs.readFileSync(torrentPath))
+    const plen = this.torrent.info['piece length']
+    const total = this.torrent.info.files
+      ? this.torrent.info.files.reduce((a,f)=>a+f.length,0)
+      : this.torrent.info.length
+    this.totalPieces = Math.ceil(total / plen)
+    console.log(this.totalPieces);
+    const socket = dgram.createSocket('udp4')
+    const announceUrl = Buffer.from(this.torrent.announce).toString()
+
+    socket.on('message', async buf => {
+      const action = buf.readUInt32BE(0)
+      if (action === 0) {
+        const { connectionId } = this.parseConnection(buf)
+        const areq = this.buildAnnounceReq(connectionId)
+        this.udpSend(socket, areq, announceUrl)
+
+      } else if (action === 1) {
+        socket.close()
+        const peers = this.parseAnnounce(buf)
+
+        const selected = await this.selectPeers(peers)
+        selected.forEach(p=> this.download(p))
+      }
+    })
+
+    this.udpSend(socket, this.buildConnReq(), announceUrl)
+  }
+
+
+  probeLatency(peer) {
+    return new Promise((res, rej) => {
+      const start = Date.now()
+      const s = net.connect(peer.port, peer.ip)
+      s.once('connect', ()=>{
+        const dt = Date.now() - start
+        s.destroy()
+        res({peer,lat:dt})
+      })
+      s.once('error', ()=> rej(peer))
+      setTimeout(()=>{ s.destroy(); rej(peer) }, 2000)
+    })
+  }
+
+  async selectPeers(peers) {
+    const results = await Promise.allSettled(peers.map(p=>this.probeLatency(p)))
+    const success = results
+      .filter(r=>r.status==='fulfilled')
+      .map(r=>r.value)
+      .sort((a,b)=>a.lat - b.lat)
+
+    const best = success.slice(0,3).map(x=>x.peer)
+    const rest  = peers.filter(p=> !best.includes(p))
+    const rnd   = rest[Math.floor(Math.random()*rest.length)]
+    return [...best, rnd].filter(Boolean)
+  }
+
+
+  genId() {
+    if (!this.peer_id) {
+      this.peer_id = Buffer.alloc(20)
+      Buffer.from('-ET0001-').copy(this.peer_id,0)
+      crypto.randomBytes(12).copy(this.peer_id,8)
+    }
+    return this.peer_id
+  }
+
+  buildHandshake() {
+    const buf = Buffer.alloc(68)
+    buf.writeUInt8(19,0)
+    buf.write('BitTorrent protocol',1)
+    buf.writeUInt32BE(0,20)
+    buf.writeUInt32BE(0,24)
+    this.infoHash().copy(buf,28)
+    this.genId().copy(buf,48)
+    return buf
+  }
+
+  buildInterested() {
+    const b = Buffer.alloc(5)
+    b.writeUInt32BE(1,0)
+    b.writeUInt8(2,4)
+    return b
+  }
+
+  buildRequest({index,begin,length}) {
+    const b = Buffer.alloc(17)
+    b.writeUInt32BE(13,0)
+    b.writeUInt8(6,4)
+    b.writeUInt32BE(index,5)
+    b.writeUInt32BE(begin,9)
+    b.writeUInt32BE(length,13)
+    return b
+  }
+
+  onWholeMsg(socket, cb) {
+    let buf = Buffer.alloc(0), handshake = true
+    socket.on('data', chunk => {
+      buf = Buffer.concat([buf,chunk])
+      const needed = handshake
+        ? (buf.readUInt8(0) + 49)
+        : (buf.readUInt32BE(0) + 4)
+
+      if (buf.length >= needed) {
+        const msg = buf.slice(0,needed)
+        buf = buf.slice(needed)
+        handshake = false
+        cb(msg,socket)
+      }
+    })
+  }
+
+  msgHandler(msg, socket) {
+    if (msg.length === msg.readUInt8(0) + 49 &&
+        msg.toString('utf8',1).includes('BitTorrent protocol')) {
+      socket.write(this.buildInterested())
+      return
     }
 
-    resType(res) {
-        const actionsMap = {
-            0: "connect",
-            1: "announce"
+    const size = msg.readUInt32BE(0)
+    const id   = size>0 ? msg.readUInt8(4):null
+    const pay  = size>5 ? msg.slice(5):null
+
+    switch(id) {
+      case 0: this.chokeHandler(socket); break
+      case 1: this.unchokeHandler(socket); break
+      case 4: this.haveHandler(pay,socket); break
+      case 5: this.bitfieldHandler(pay,socket); break
+      case 7:
+        {
+          const idx   = pay.readUInt32BE(0)
+          const block = pay.slice(8)
+          this.pieceHandler({index:idx,block})
         }
-        const action = res.readUInt32BE(0);
-        return actionsMap[action]
+        break
+      default:
     }
-    parseConnection(res) {
-        return {
-            action: res.readUInt32BE(0),
-            transactionId: res.readUInt32BE(4),
-            connectionId: res.slice(8)
+  }
+
+  chokeHandler(socket) {
+    this.unchoked.delete(socket)
+  }
+
+  unchokeHandler(socket) {
+    this.unchoked.add(socket)
+    this.initQueue()
+  }
+
+  haveHandler(payload, socket) {
+    const idx = payload.readUInt32BE(0)
+    this.peersHave[idx] = this.peersHave[idx]||new Set()
+    this.peersHave[idx].add(socket)
+  }
+
+  bitfieldHandler(payload, socket) {
+    for (let i=0; i<payload.length; i++) {
+      for (let b=0; b<8; b++) {
+        if (payload[i] & (1<<(7-b))) {
+          const idx = i*8 + b
+          this.peersHave[idx] = this.peersHave[idx]||new Set()
+          this.peersHave[idx].add(socket)
         }
+      }
     }
-    infoHash(torrent) {
-            const info = bencode.encode(torrent.info);
-            return crypto.createHash('sha1').update(info).digest()
-    }
-    size(torrent) {
-        let totalSize;
-        if (torrent.info.files) {
-            totalSize = torrent.info.files.reduce((acc, file) => acc + file.length, 0);
-        } else {
-            totalSize = torrent.info.length;
-        }
-        const buf = Buffer.alloc(8);
-        buf.writeBigUInt64BE(BigInt(totalSize));
-        return buf;
-    }
-    buildAnnounceReq(id, torrent) {
-        const buf = Buffer.alloc(98);
-    
-        //connection_id
-        id.copy(buf, 0);
-        //action 1 announce
-        buf.writeUInt32BE(1, 8);
-        //transaction id
-        crypto.randomBytes(4).copy(buf, 12);
-        //get hash
-        this.infoHash(torrent).copy(buf, 16);
-        //peer_id
-        this.genId().copy(buf, 36);
-        //download
-        Buffer.alloc(8).copy(buf, 56);
-        //left
-        this.size(torrent).copy(buf, 64);
-        //uploaded
-        Buffer.alloc(8).copy(buf, 72);
-        //event
-        buf.writeUint32BE(0, 80);
-        //ip
-        buf.writeUint32BE(0, 84);
-        //key
-        crypto.randomBytes(4).copy(buf, 88);
-        //num
-        buf.writeInt32BE(-1, 92);
-        // port
-        buf.writeUint16BE(6881, 96);
-    
-        return buf;
-    }
-    parseAnnounce(resp) {
-        function group(buffer, groupSize) {
-            const groups = [];
-            for (let i = 0; i <= buffer.length - groupSize; i += groupSize) {
-                groups.push(buffer.slice(i, i + groupSize));
-            }
-            return groups;
-        }
-    
-        const peers = group(resp.slice(20), 6).map(address => {
-            const ipBytes = Array.from(address.slice(0, 4));
-            const ip = ipBytes.join('.');
-            const port = address.readUInt16BE(4);
-            return { ip, port };
-        });
-    
-        return {
-            action: resp.readUInt32BE(0),
-            transactionId: resp.readUInt32BE(4),
-            leechers: resp.readUInt32BE(8),
-            seeders: resp.readUInt32BE(12),
-            peers: peers
-        };
-    }
-    genId() {
-        if (!this.peer_id) {
-            this.peer_id = crypto.randomBytes(20);
-            Buffer.from('-ET0001-').copy(this.peer_id, 0);
-        }
-        return this.peer_id;
-    }
-    buildConnReq() {
-        const buf = Buffer.alloc(16);
-    
-        //8bytes connection id
-        buf.writeUInt32BE(0x417, 0);
-        buf.writeUInt32BE(0x27101980, 4);
-        //action 0 connect
-        buf.writeUInt32BE(0, 8);
-        //transaction_id
-        crypto.randomBytes(4).copy(buf, 12);
-        return buf;
-    }
-    
-    udpSend(socket, message, rawUrl) {
-        const url = URL.parse(rawUrl);
-        socket.send(message, 0, message.length, url.port, url.hostname, () => {});
-    }
-    
-    getPeers(path) {
-        const socket = dgram.createSocket('udp4');
-        const torrent = bencode.decode(fs.readFileSync(path));
-        const announceBuffer = Buffer.from(torrent.announce);
-        const url = announceBuffer.toString('utf8');
-          
-        this.udpSend(socket, this.buildConnReq(), url);
-    
-        socket.on('message', res => {
-            if(this.resType(res) === 'connect') {
-                const conn = this.parseConnection(res);
-                const announceReq = this.buildAnnounceReq(conn.connectionId, torrent);
-                this.udpSend(socket, announceReq, url);
-            } else if (this.resType(res) === 'announce') {
-                const announce = this.parseAnnounce(res);
-                socket.close()
-                announce.peers.forEach(peer => this.download(peer, torrent));
-            }
-        });
-    }
+  }
 
-    buildHandshake(torrent) {
-        const buf = Buffer.alloc(68);
-        //prtocol name len
-        buf.writeUint8(19, 0);
-        //protocol name
-        buf.write('BitTorrent protocol', 1);
-        //reserved
-        buf.writeUInt32BE(0, 20);
-        buf.writeUInt32BE(0, 24);
-        //info hash
-        this.infoHash(torrent).copy(buf, 28)è
-        buf.write(this.genId());
-        return buf
-    }
-    buildKeepAlive () {return Buffer.alloc(4)}
-    buildChoke() {
-        const buf = Buffer.alloc(5);
-        //len
-        buf.writeUInt32BE(1, 0);
-        //id
-        buf.writeUInt8(1, 4);
-        return buf;
-    }
-    buildInterested() {
-        const buf = Buffer.alloc(5);
-        //len
-        buf.writeUInt32BE(1, 0);
-        //id
-        buf.writeUInt8(2, 4);
-        return buf;
-    }
-    buildUninterested() {
-        const buf = Buffer.alloc(5);
-        //len
-        buf.writeUInt32BE(1, 0);
-        //id
-        buf.writeUInt8(3, 4);
-        return buf;
-    }
-    buildHave(payload) {
-        const buf = Buffer.alloc(9);
-        //len
-        buf.writeUInt32BE(5, 0);
-        //id
-        buf.writeUInt8(4, 4);
-        //piece index
-        buf.writeUInt32BE(payload, 5)
-        return buf;
-    }
-    buildBitfield(bitfield, payload) {
-        const buf = Buffer.alloc(14);
-        //len
-        buf.writeUInt32BE(payload.length + 1, 0);
-        //id
-        buf.writeUInt8(5, 4);
-        //piece index
-        bitfield.copy(buf, 5);
-        return buf;
-    }
-    buildRequest(payload) {
-        const buf = Buffer.alloc(17);
-        //len
-        buf.writeUInt32BE(13, 0);
-        //id
-        buf.writeUInt8(6, 4);
-        //piece index
-        buf.writeUInt32BE(payload.index, 5);
-        buf.writeUInt32BE(payload.begin, 9);
-        buf.writeUInt32BE(payload.length, 13);
-        return buf;
-    }
-    buildPiece(payload) {
-        const buf = Buffer.alloc(payload.block.length + 13);
-        //len
-        buf.writeUInt32BE(payload.block.length + 9, 0);
-        //id
-        buf.writeUInt8(7, 4);
-        //piece index
-        buf.writeUInt32BE(payload.index, 5);
-        buf.writeUInt32BE(payload.begin, 9);
-        payload.block.copy(buf, 13);
-        return buf;
-    }
-    buildCancel(payload) {
-        const buf = Buffer.alloc(17);
-        //len
-        buf.writeUInt32BE(13, 0);
-        //id
-        buf.writeUInt8(8, 4);
-        //piece index
-        buf.writeUInt32BE(payload.index, 5);
-        buf.writeUInt32BE(payload.begin, 9);
-        buf.writeUInt32BE(payload.length, 13);
-        return buf;
-    }
-    buildPort(payload) {
-        const buf = Buffer.alloc(7);
-        //len
-        buf.writeUInt32BE(3, 0);
-        //id
-        buf.writeUInt8(9, 4);
-        //piece index
-        buf.writeUInt16BE(payload, 5);
-        return buf;
-    }
-    chokeHandler() {
+  pieceHandler({index,block}) {
+    this.ownPieces.add(index)
+    this.requestedPieces.delete(index)
+    fs.appendFileSync('output.data', block)
+    console.log("received #" + index)
+    this.initQueue()
+  }
 
+  initQueue() {
+    for (const sock of this.unchoked) {
+      const next = [...Array(this.totalPieces).keys()]
+        .find(i => !this.ownPieces.has(i)
+                 && !this.requestedPieces.has(i)
+                 && (this.peersHave[i]||new Set()).has(sock))
+      if (next !== undefined) {
+        this.requestedPieces.add(next)
+        sock.write(this.buildRequest({ index:next, begin:0, length:16*1024 }))
+      }
     }
-    unchokeHandler() {
+  }
 
-    }
-    haveHandler(payload) {
-
-    }
-    bitfieldHandler(payload) {
-
-    }
-    pieceHandler(payload) {
-
-    }
-    //2 bits per pieces first requested second received
-    onWholeMsg(socket, callback) {
-        let savedBuf = Buffer.alloc(0);
-        let handshake = true;
-
-        socket.on('data', res => {
-            const msgLen = () => handshake ? savedBuf.readUInt8(0) + 49 : savedBuf.readInt32BE(0) + 4;
-            savedBuf = Buffer.concat([savedBuf, res]);
-
-            while(savedBuf.length >= 4 && savedBuf.length >= msgLen()) {
-                callback(savedBuf.slice(0, msgLen()));
-                savedBuf = savedBuf.slice(msgLen());
-                handshake = false;
-            }
-        });
-    }
-    msgHandler(msg, socket) {
-        const map = {
-            0: this.chokeHandler,
-            1: this.unchokeHandler,
-            4: have = () => this.haveHandler(m.payload),
-            5: bitfield = () => this.bitfieldHandler(m.payload),
-            7: piece = () => this.pieceHandler(m.payload)
-        }
-        if (this.isHandshake(msg))
-            socket.write(this.buildInterested());
-        else {
-            const m = this.parseMsg(msg);
-            map[m.id]();
-        }
-
-    }
-    isHandshake(msg) {
-        return msg.length === msg.readUInt8(0) + 49 && msg.toString('utf8', 1) === 'BitTorrent protocol';
-    }
-    parseMsg(msg) {
-        const id = msg.length > 4 ? msg.readUInt8(4) : null;
-        let payload = msg.length > 5 ? msg.slice(5) : null;
-        if (id === 6 || id === 7 || id === 8) {
-            const rest = payload.slice(8);
-            payload = {
-                index: payload.readInt32BE(0),
-                begin: payload.readInt32BE(4)
-            };
-            payload[id === 7 ? 'block' : 'length'] = rest;
-        }
-        return {
-            size: msg.readInt32BE(0),
-            id: id,
-            payload: payload
-        }
-    }
-    download(peer, torrent) {
-        const socket = new net.Socket();
-        socket.on('error', console.log);
-        socket.connect(peer.port, peer.ip, () => {
-            socket.write(this.buildHandshake(torrent));
-        });
-        this.onWholeMsg(socket, msg => this.msgHandler(msg, socket));
-    }
+  download(peer) {
+    const sock = new net.Socket()
+    sock.on('error', ()=>{})
+    sock.connect(peer.port, peer.ip, () => {
+      this.peerSockets.push(sock)
+      sock.write(this.buildHandshake())
+      this.onWholeMsg(sock, (msg,s) => this.msgHandler(msg,s))
+    })
+  }
 }
 
-function doo() {
-    const client = new BitTorrentClient();
-    client.getPeers('Superbad.torrent');
-}
-
-doo()
+(async function(){
+  const client = new BitTorrentClient()
+  await client.getPeers('Superbad.torrent')
+})()
