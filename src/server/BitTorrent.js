@@ -15,6 +15,7 @@ class BitTorrentClient {
     this.peerSockets    = []
     this.unchoked       = new Set()
     this.peersHave      = {}
+    this.queue          = []
   }
 
   buildConnReq() {
@@ -232,7 +233,7 @@ class BitTorrentClient {
 
   haveHandler(payload, socket) {
     const idx = payload.readUInt32BE(0)
-    this.peersHave[idx] = this.peersHave[idx]||new Set()
+    this.peersHave[idx] = this.peersHave[idx] || new Set()
     this.peersHave[idx].add(socket)
   }
 
@@ -241,7 +242,7 @@ class BitTorrentClient {
       for (let b=0; b<8; b++) {
         if (payload[i] & (1<<(7-b))) {
           const idx = i*8 + b
-          this.peersHave[idx] = this.peersHave[idx]||new Set()
+          this.peersHave[idx] = this.peersHave[idx] || new Set()
           this.peersHave[idx].add(socket)
         }
       }
@@ -255,17 +256,32 @@ class BitTorrentClient {
     console.log("received #" + index)
     this.initQueue()
   }
+  pieceLen(torrent, index) {
+    const totalLen = Number(this.size(torrent).readBigUInt64BE(0));
+    const pLen = torrent.info['piece length'];
+    const lastPLen = totalLen % pLen;
+    const lastPI = Math.floor(totalLen / pLen);
+    return lastPI === index ? lastPLen : pLen;
+  }
+  blockLen(torrent, pieceIndex, blockIndex) {
+    const pLen= this.pieceLen(torrent, pieceIndex);
+    const lastPLen = pLen % (16 * 1024);
+    const lastPI = Math.floor(pLen / (16 * 1024));
 
-  initQueue() {
-    for (const sock of this.unchoked) {
-      const next = [...Array(this.totalPieces).keys()]
-        .find(i => !this.ownPieces.has(i)
-                 && !this.requestedPieces.has(i)
-                 && (this.peersHave[i]||new Set()).has(sock))
-      if (next !== undefined) {
-        this.requestedPieces.add(next)
-        sock.write(this.buildRequest({ index:next, begin:0, length:16*1024 }))
-      }
+    return blockIndex === lastPI ? lastPLen : 16 * 1024;
+  }
+  blocksPerPiece(torrent, index) {
+    const pLen = this.pieceLen(torrent, index);
+    return Math.ceil(pLen / (16 * 1024));
+  }
+  addQueue(index, queue, torrent) {
+    const n = this.blocksPerPiece(torrent, index);
+    for (let i = 0; i< n; i++) {
+        queue.push({
+            index: index,
+            begin: i * 16 * 1024,
+            length: this.blockLen(torrent, index, i);
+        })
     }
   }
 
