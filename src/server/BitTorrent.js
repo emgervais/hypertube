@@ -10,12 +10,9 @@ class BitTorrentClient {
     this.peer_id        = null
     this.torrent        = null
     this.totalPieces    = 0
-    this.ownPieces      = new Set()
-    this.requestedPieces= new Set()
+    this.requestedPieces= null
+    this.receivedPieces= null
     this.peerSockets    = []
-    this.unchoked       = new Set()
-    this.peersHave      = {}
-    this.queue          = []
   }
 
   buildConnReq() {
@@ -83,15 +80,17 @@ class BitTorrentClient {
   }
 
   async getPeers(torrentPath) {
-    this.torrent = bencode.decode(fs.readFileSync(torrentPath))
-    const plen = this.torrent.info['piece length']
+    this.torrent = bencode.decode(fs.readFileSync(torrentPath));
+    const plen = this.torrent.info['piece length'];
     const total = this.torrent.info.files
       ? this.torrent.info.files.reduce((a,f)=>a+f.length,0)
-      : this.torrent.info.length
-    this.totalPieces = Math.ceil(total / plen)
-    console.log(this.totalPieces);
-    const socket = dgram.createSocket('udp4')
-    const announceUrl = Buffer.from(this.torrent.announce).toString()
+      : this.torrent.info.length;
+    this.totalPieces = Math.ceil(total / plen);
+    const arr = Array(this.totalPieces).fill(null);
+    this.receivedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
+    this.requestedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
+    const socket = dgram.createSocket('udp4');
+    const announceUrl = Buffer.from(this.torrent.announce).toString();
 
     socket.on('message', async buf => {
       const action = buf.readUInt32BE(0)
@@ -105,7 +104,7 @@ class BitTorrentClient {
         const peers = this.parseAnnounce(buf)
 
         const selected = await this.selectPeers(peers)
-        selected.forEach(p=> this.download(p))
+        peers.forEach(p=> this.download(p))
       }
     })
 
@@ -205,7 +204,7 @@ class BitTorrentClient {
     const size = msg.readUInt32BE(0)
     const id   = size>0 ? msg.readUInt8(4):null
     const pay  = size>5 ? msg.slice(5):null
-
+    console.log(`received message ${id} from ${socket.address().address}`)
     switch(id) {
       case 0: this.chokeHandler(socket); break
       case 1: this.unchokeHandler(socket); break
@@ -221,20 +220,41 @@ class BitTorrentClient {
       default:
     }
   }
+  getNextPiece(socket) {
+    if(this.requestedPieces.every(blocks => blocks.every(i => i))) {
+        if(this.receivedPieces.every(blocks => blocks.every(i => i)) === false)
+            this.requestedPieces = structuredClone(this.receivedPieces);
+    }
 
+    for(let i = 0; i < this.totalPieces; i++) {
+        if(this.requestedPieces[i] === false && this.receivedPieces[i] === false && this.peerSockets[socket.address().address].have.includes(i)) {
+            this.requestedPieces[i] = true;
+            this.addQueue(i, this.peerSockets[socket.address().address])
+            break;
+        }
+    }
+    //close connection get new peer
+  }
   chokeHandler(socket) {
-    this.unchoked.delete(socket)
+    console.log(socket.address().address, " Choked us.");
+    this.peerSockets[socket.address().address].choked = true;
+    // delete this.peerSockets[socket.address().address]
+    // socket.close();
+    // get new peer
   }
 
   unchokeHandler(socket) {
-    this.unchoked.add(socket)
-    this.initQueue()
+    console.log(socket.address().address, " Unchoked us.");
+    this.peerSockets[socket.address().address].choked = false;
+    this.getNextPiece(socket);
+    this.requestPiece(socket);
   }
 
   haveHandler(payload, socket) {
-    const idx = payload.readUInt32BE(0)
-    this.peersHave[idx] = this.peersHave[idx] || new Set()
-    this.peersHave[idx].add(socket)
+    if(payload) {
+        const idx = payload.readUInt32BE(0)
+        this.peerSockets[socket.address().address].have[idx] = true;
+    }
   }
 
   bitfieldHandler(payload, socket) {
@@ -242,19 +262,18 @@ class BitTorrentClient {
       for (let b=0; b<8; b++) {
         if (payload[i] & (1<<(7-b))) {
           const idx = i*8 + b
-          this.peersHave[idx] = this.peersHave[idx] || new Set()
-          this.peersHave[idx].add(socket)
+          const add = socket.address().address;
+          this.peerSockets[socket.address().address].have[idx] = true;
         }
       }
     }
   }
 
   pieceHandler({index,block}) {
-    this.ownPieces.add(index)
-    this.requestedPieces.delete(index)
-    fs.appendFileSync('output.data', block)
-    console.log("received #" + index)
-    this.initQueue()
+    const blockIndex = block.begin / (1024 * 16)
+    this.receivedPieces[index][blockIndex] = true;
+    console.log(`received piece #${index} block #${blockIndex}`);
+    this.requestPiece(socket);
   }
   pieceLen(torrent, index) {
     const totalLen = Number(this.size(torrent).readBigUInt64BE(0));
@@ -274,22 +293,32 @@ class BitTorrentClient {
     const pLen = this.pieceLen(torrent, index);
     return Math.ceil(pLen / (16 * 1024));
   }
-  addQueue(index, queue, torrent) {
-    const n = this.blocksPerPiece(torrent, index);
+  addQueue(index, queue) {
+    const n = this.blocksPerPiece(this.torrent, index);
     for (let i = 0; i< n; i++) {
         queue.push({
             index: index,
             begin: i * 16 * 1024,
-            length: this.blockLen(torrent, index, i);
+            length: this.blockLen(this.torrent, index, i)
         })
     }
   }
+  requestPiece(socket) {
+    if(this.peerSockets[socket.address().address].choked) return;
+    if(this.peerSockets[socket.address().address].queue.length === 0)
+        this.getNextPiece(socket);
+    const block = this.peerSockets[socket.address().address].queue.shift();
+    const blockIndex = block.begin / (1024 * 16);
+    this.requestedPieces[block.index][blockIndex] = true;
+    console.log(`requesting piece #${block.index} block #${blockIndex}`);
+    socket.write(this.buildRequest(block));
 
+  }
   download(peer) {
     const sock = new net.Socket()
-    sock.on('error', ()=>{})
+    sock.on('error', ()=>{console.log})
     sock.connect(peer.port, peer.ip, () => {
-      this.peerSockets.push(sock)
+      this.peerSockets[sock.address().address] =  {queue: [], have: [], choked: true}//fucked wit hsocket
       sock.write(this.buildHandshake())
       this.onWholeMsg(sock, (msg,s) => this.msgHandler(msg,s))
     })
