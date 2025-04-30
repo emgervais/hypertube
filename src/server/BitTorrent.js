@@ -178,32 +178,38 @@ class BitTorrentClient {
   }
 
   onWholeMsg(socket, cb) {
-    let buf = Buffer.alloc(0), handshake = true
-    socket.on('data', chunk => {
-      buf = Buffer.concat([buf,chunk])
-      const needed = handshake
-        ? (buf.readUInt8(0) + 49)
-        : (buf.readUInt32BE(0) + 4)
-
-      if (buf.length >= needed) {
-        const msg = buf.slice(0,needed)
-        buf = buf.slice(needed)
-        handshake = false
-        cb(msg,socket)
+    let buf = Buffer.alloc(0);
+    let handshake = true;
+  
+    socket.on('data', recvBuf => {
+      const msgLen = () => handshake ? buf.readUInt8(0) + 49 : buf.readInt32BE(0) + 4;
+      buf = Buffer.concat([buf, recvBuf]);
+  
+      while (buf.length >= 4 && buf.length >= msgLen()) {
+        cb(buf.slice(0, msgLen()), socket);
+        buf = buf.slice(msgLen());
+        handshake = false;
       }
-    })
+    });
   }
 
   msgHandler(msg, socket) {
-    if (msg.length === msg.readUInt8(0) + 49 &&
-        msg.toString('utf8',1).includes('BitTorrent protocol')) {
-      socket.write(this.buildInterested())
-      return
+    if (msg.length === msg.readUInt8(0) + 49 && msg.toString('utf8',1).includes('BitTorrent protocol')) {
+      socket.write(this.buildInterested());
+      return;
     }
-
-    const size = msg.readUInt32BE(0)
-    const id   = size>0 ? msg.readUInt8(4):null
-    const pay  = size>5 ? msg.slice(5):null
+    if (!this.peerSockets[socket.address().port])
+      return;
+    const id = msg.length > 4 ? msg.readInt8(4) : null;
+    let pay = msg.length > 5 ? msg.slice(5) : null;
+    if (id === 6 || id === 7 || id === 8) {
+      const rest = pay.slice(8);
+      pay = {
+        index: pay.readInt32BE(0),
+        begin: pay.readInt32BE(4)
+      };
+      pay[id === 7 ? 'block' : 'length'] = rest;
+    }
     console.log(`received message ${id} from ${socket.address().port}`)
     try {
       switch(id) {
@@ -211,16 +217,13 @@ class BitTorrentClient {
         case 1: this.unchokeHandler(socket); break
         case 4: this.haveHandler(pay,socket); break
         case 5: this.bitfieldHandler(pay,socket); break
-        case 7:
-          {
-            const idx   = pay.readUInt32BE(0)
-            const block = pay.slice(8)
-            this.pieceHandler({index:idx,block})
-          }
-          break
+        case 7: this.pieceHandler(pay, socket); break
         default:
       }
-    } catch(e) {}
+    } catch(e) {
+      if(e.message !== "error")
+        console.log(e);
+    }
   }
   getNextPiece(socket) {
     if(this.requestedPieces.every(blocks => blocks.every(i => i)) === true) {
@@ -230,16 +233,18 @@ class BitTorrentClient {
 
     for(let i = 0; i < this.totalPieces; i++) {
         if(this.requestedPieces[i].every(j => j) === false && this.peerSockets[socket.address().port].have.includes(i)) {//something wrong here
-            this.requestedPieces[i].forEach(j = true);
-            this.addQueue(i, this.peerSockets[socket.address().port])
+            this.requestedPieces[i] = this.requestedPieces[i].map(() => true);
+            this.addQueue(i, this.peerSockets[socket.address().port].queue)
             break;
         }
     }
-    const port = socket.address().port;
-    console.log(`deleting ${port}`)
-    delete this.peerSockets[socket.address().port]
-    socket.destroy();
-    throw new Error("error");
+    if(this.peerSockets[socket.address().port].queue.length === 0) {
+      const port = socket.address().port;
+      console.log(`deleting ${port}`)
+      delete this.peerSockets[socket.address().port]
+      socket.destroy();
+      throw new Error("error");
+    }
     //close connection get new peer
   }
   chokeHandler(socket) {
@@ -259,8 +264,8 @@ class BitTorrentClient {
 
   haveHandler(payload, socket) {
     if(payload) {
-        const idx = payload.readUInt32BE(0)
-        this.peerSockets[socket.address().port].have[idx] = true;
+        const index = payload.readUInt32BE(0);
+        this.peerSockets[socket.address().port].have.push(index);
     }
   }
 
@@ -268,18 +273,17 @@ class BitTorrentClient {
     for (let i=0; i<payload.length; i++) {
       for (let b=0; b<8; b++) {
         if (payload[i] & (1<<(7-b))) {
-          const idx = i*8 + b
-          const add = socket.address().port;
-          this.peerSockets[socket.address().port].have[idx] = true;
+          const index = i*8 + b
+          this.peerSockets[socket.address().port].have.push(index);
         }
       }
     }
   }
 
-  pieceHandler({index,block}) {
+  pieceHandler(block, socket) {
     const blockIndex = block.begin / (1024 * 16)
-    this.receivedPieces[index][blockIndex] = true;
-    console.log(`received piece #${index} block #${blockIndex}`);
+    this.receivedPieces[block.index][blockIndex] = true;
+    console.log(`received piece #${block.index} block #${blockIndex}`);
     this.requestPiece(socket);
   }
   pieceLen(torrent, index) {
