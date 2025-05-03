@@ -13,6 +13,7 @@ class BitTorrentClient {
     this.requestedPieces= null
     this.receivedPieces= null
     this.peerSockets = {}
+    this.file = 0
   }
 
   buildConnReq() {
@@ -285,6 +286,8 @@ class BitTorrentClient {
     this.receivedPieces[block.index][blockIndex] = true;
     console.log(`received piece #${block.index} block #${blockIndex}`);
     this.requestPiece(socket);
+    const offset = block.index * this.torrent.info['piece length'] + block.begin;
+    fs.write(this.file, block.block, 0, block.block.length, offset, () => {});
   }
   pieceLen(torrent, index) {
     const totalLen = Number(this.size(torrent).readBigUInt64BE(0));
@@ -329,6 +332,7 @@ class BitTorrentClient {
   download(peer) {
     try {
       const sock = new net.Socket()
+      this.file = fs.openSync('film', 'w');
       sock.on('error', ()=>{console.log})
       sock.connect(peer.port, peer.ip, () => {
         this.peerSockets[sock.address().port] =  {queue: [], have: [], choked: true}
@@ -341,5 +345,5 @@ class BitTorrentClient {
 
 (async function(){
   const client = new BitTorrentClient()
-  await client.getPeers('Superbad.torrent')
+  await client.getPeers('s.torrent')
 })()
