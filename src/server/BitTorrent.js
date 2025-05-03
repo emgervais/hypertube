@@ -332,7 +332,7 @@ class BitTorrentClient {
   download(peer) {
     try {
       const sock = new net.Socket()
-      this.file = fs.openSync('film', 'w');
+      this.file = fs.openSync('film.mp4', 'w');
       sock.on('error', ()=>{console.log})
       sock.connect(peer.port, peer.ip, () => {
         this.peerSockets[sock.address().port] =  {queue: [], have: [], choked: true}

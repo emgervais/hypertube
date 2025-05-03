@@ -14,7 +14,7 @@ const updateCommentSchema = S.object()
     .prop('username', S.string().required())
     .prop('comment', S.string().required())
 const getCommentSchema = S.object()
-    .prop('id', S.string().minLength(24).required())
+    .prop('id', S.string().required())
 
 const getMovieSchema = S.object()
     .prop('name', S.string())

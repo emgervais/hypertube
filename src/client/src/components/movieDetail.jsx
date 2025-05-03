@@ -10,8 +10,9 @@ export default function MovieDetail() {
         <div className='flex flex-col justify-center grow-5 items-center'>
             <div className='size-1/2 flex flex-col justify-center align-center h-fit'>
                 <h4 className='font-bold pb-2 text-center'>{location.state.movie.title}<div className='flex justify-center items-center'>{`(${location.state.movie.year}) `}{location.state.movie.rating}<Star/></div></h4>
-                {isPlaying ? <video/> : <img src={location.state.movie.image}/>}
+                {isPlaying ?     <video src={`http://localhost:8080/stream?id=${location.state.movie.id}`} width="1080px" controls autoPlay crossOrigin="anonymous"></video> : <img src={location.state.movie.image}/>}
             </div>
+            <button onClick={() => {setIsPlaying(!isPlaying)}}>play</button>
         </div>
     )
 }

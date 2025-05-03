@@ -12,6 +12,9 @@ const loginSchema = S.object()
     .prop('username', S.string().required())
     .prop('password', S.string().required())
 
+const streamingSchema = S.object()
+    .prop('id', S.string().required())
+
 const updateSchema = S.object()
     .prop('name', S.string().minLength(1))
     .prop('surname', S.string().minLength(1))
@@ -23,3 +26,4 @@ const updateSchema = S.object()
 export const registerValidation = {body: registerSchema, hide: true}
 export const loginValidation = {body: loginSchema}
 export const updateValidation = {body: updateSchema, hide: true}
+export const streamingValidation = {query: streamingSchema}

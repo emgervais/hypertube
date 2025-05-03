@@ -46,26 +46,28 @@ async function getMovies(req, reply) {
     }
 }
 
-async function getMovie(req, reply) {
-    
-    try {
-        const id = req.params.id
-        const res = await fetch(`https://yts.mx/api/v2/movie_details.json?imdb_id=${id}`);
-        const results = await res.json();
-        const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`);
-        const html = await subPage.text();
-        const dom = new jsdom.JSDOM(html);
-        const document = dom.window.document;
+async function findMovie(id) {
+    const res = await fetch(`https://yts.mx/api/v2/movie_details.json?imdb_id=${id}`);
+    const results = await res.json();
+    const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`);
+    const html = await subPage.text();
+    const dom = new jsdom.JSDOM(html);
+    const document = dom.window.document;
 
-        const rows = [...document.querySelectorAll('tbody tr')];
-        const rowData = rows.map(row => {
-          const cells = [...row.querySelectorAll('td')];
-          return {[cells[1].textContent]: `https://yifysubtitles.ch${row.querySelector('a').href.replace('subtitles', 'subtitle')}.zip`}
-        });
-        const subs = [...new Set(rowData.map(row => Object.keys(row)[0]))]
-        const movie = results.data.movie
+    const rows = [...document.querySelectorAll('tbody tr')];
+    const rowData = rows.map(row => {
+      const cells = [...row.querySelectorAll('td')];
+      return {[cells[1].textContent]: `https://yifysubtitles.ch${row.querySelector('a').href.replace('subtitles', 'subtitle')}.zip`}
+    });
+    const subs = [...new Set(rowData.map(row => Object.keys(row)[0]))]
+    const movie = results.data.movie
+    return [movie, subs];
+}
+async function getMovie(req, reply) {
+    try {
+        const [movie, subs] = await findMovie(req.params.id);
         const commentsCollection = this.mongo.db.collection("comments");
-        const comments = await commentsCollection.find({movie_id: id}).toArray()
+        const comments = await commentsCollection.find({movie_id: req.params.id}).toArray()
         reply.status(200).send({id: movie.imdb_code, name: movie.title, rating: movie.rating, year: movie.year, length: movie.runtime, subtitles: subs, comments: comments});
     } catch(e) {
         console.log(e);
@@ -155,4 +157,4 @@ async function deleteComment(req, reply) {
     }
 }
 
-export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieFilter}
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieFilter, findMovie}

@@ -1,18 +1,20 @@
-import Fastify from "fastify"
-import db from "@fastify/mongodb"
-import fastifySwagger from '@fastify/swagger'
-import fastifySwaggerUI from '@fastify/swagger-ui'
-import userRoutes from "./routes/userRoutes.js"
-import authRoutes from "./routes/authRoutes.js"
-import apiRoutes from "./routes/apiRoutes.js"
-import dotenv from 'dotenv'
-import auth from './plugin/auth.js'
+import fCookie from '@fastify/cookie'
 import cors from '@fastify/cors'
 import fjwt from '@fastify/jwt'
-import fCookie from '@fastify/cookie'
-import mailerPlugin from 'fastify-mailer'
+import db from "@fastify/mongodb"
 import oauthPlugin from '@fastify/oauth2'
+import fastifyRange from 'fastify-range'
+import fastifySwagger from '@fastify/swagger'
+import fastifySwaggerUI from '@fastify/swagger-ui'
+import dotenv from 'dotenv'
+import Fastify from "fastify"
+import mailerPlugin from 'fastify-mailer'
 import path from 'path'
+import auth from './plugin/auth.js'
+import apiRoutes from "./routes/apiRoutes.js"
+import authRoutes from "./routes/authRoutes.js"
+import streamingRoutes from "./routes/streamingRoutes.js"
+import userRoutes from "./routes/userRoutes.js"
 
 dotenv.config()
 
@@ -49,9 +51,9 @@ const fastify = Fastify({
 .register(cors, { 
   origin: ['http://127.0.0.1:5173'], 
   credentials: true, 
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE", 
-  allowedHeaders: "Content-Type,Authorization",
-  exposedHeaders: ["set-cookie"],
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", 
+  allowedHeaders: ["Content-Type,Authorization",'Range'],
+  exposedHeaders: ["set-cookie",'Accept-Ranges', 'Content-Range', 'Content-Length'],
   maxAge: 86900
 })
 .register(db, { forceClose: true, url: process.env.MONGODB_URI})
@@ -95,9 +97,11 @@ const fastify = Fastify({
   req.jwt = fastify.jwt
   return next()
 })
+.register(fastifyRange)
 .register(authRoutes, {prefix: '/auth'})
 .register(userRoutes, {prefix: '/user'})
 .register(apiRoutes, {prefix: '/api'})
+.register(streamingRoutes, {prefix: '/stream'})
 .decorate('authenticate', auth)
 .register(import('@fastify/static'), {
   root: path.join(process.cwd(), "src", "server", "assets"),
