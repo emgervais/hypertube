@@ -1,6 +1,7 @@
 import dgram from 'dgram'
 import { URL } from 'url'
 import fs from 'fs'
+import path from 'path'
 import bencode from 'bencode'
 import crypto from 'crypto'
 import net from 'net'
@@ -16,6 +17,7 @@ export default class BitTorrentClient {
     this.peerSockets = {}
     this.fileFd = 0
     this.filePath = filePath
+    this.sockets = []
   }
 
   buildConnReq() {
@@ -80,11 +82,12 @@ export default class BitTorrentClient {
     const url = URL.parse(rawUrl)
     sock.send(buf, 0, buf.length, +url.port, url.hostname)
   }
-
-  async getPeers() {
-    const res = await fetch(this.torrentPath);
+  async getPeers(id) {
+    const res = await fetch(this.torrentUrl);
     this.torrent = bencode.decode(Buffer.from(await res.arrayBuffer()));
-    this.fileFd = fs.openSync('film.' + Buffer.from(this.torrent.info['name']).toString("utf-8").split('.').pop(), 'w');
+    const extension = Buffer.from(this.torrent.info['name']).toString("utf-8").split('.').pop();
+    const filePath = path.join('src', 'server', 'movies', `${id}.${extension}`);
+    this.fileFd = fs.openSync(filePath, 'w');
     const plen = this.torrent.info['piece length'];
     const total = this.torrent.info.files ? this.torrent.info.files.reduce((a,f)=>a+f.length,0) : this.torrent.info.length;
     this.totalPieces = Math.ceil(total / plen);
@@ -112,6 +115,7 @@ export default class BitTorrentClient {
     })
 
     this.udpSend(socket, this.buildConnReq(), announceUrl);
+    return filePath;
   }
 
 
@@ -213,7 +217,7 @@ export default class BitTorrentClient {
       };
       pay[id === 7 ? 'block' : 'length'] = rest;
     }
-    console.log(`received message ${id} from ${socket.address().port}`)
+    // console.log(`received message ${id} from ${socket.address().port}`)
     try {
       switch(id) {
         case 0: this.chokeHandler(socket); break
@@ -243,7 +247,7 @@ export default class BitTorrentClient {
     }
     if(this.peerSockets[socket.address().port].queue.length === 0) {
       const port = socket.address().port;
-      console.log(`deleting ${port}`)
+      // console.log(`deleting ${port}`)
       delete this.peerSockets[socket.address().port]
       socket.destroy();
       throw new Error("error");
@@ -251,7 +255,7 @@ export default class BitTorrentClient {
     //close connection get new peer
   }
   chokeHandler(socket) {
-    console.log(socket.address().port, " Choked us.");
+    // console.log(socket.address().port, " Choked us.");
     this.peerSockets[socket.address().port].choked = true;
     // delete this.peerSockets[socket.address().port]
     // socket.close();
@@ -259,7 +263,7 @@ export default class BitTorrentClient {
   }
 
   unchokeHandler(socket) {
-    console.log(socket.address().port, " Unchoked us.");
+    // console.log(socket.address().port, " Unchoked us.");
     this.peerSockets[socket.address().port].choked = false;
     this.getNextPiece(socket);
     this.requestPiece(socket);
@@ -286,7 +290,7 @@ export default class BitTorrentClient {
   pieceHandler(block, socket) {
     const blockIndex = block.begin / (1024 * 16)
     this.receivedPieces[block.index][blockIndex] = true;
-    console.log(`received piece #${block.index} block #${blockIndex}`);
+    // console.log(`received piece #${block.index} block #${blockIndex}`);
     this.requestPiece(socket);
     const offset = block.index * this.torrent.info['piece length'] + block.begin;
     fs.write(this.fileFd, block.block, 0, block.block.length, offset, () => {});
@@ -327,13 +331,14 @@ export default class BitTorrentClient {
     const block = this.peerSockets[socket.address().port].queue.shift();
     const blockIndex = block.begin / (1024 * 16);
     this.requestedPieces[block.index][blockIndex] = true;
-    console.log(`requesting piece #${block.index} block #${blockIndex}`);
+    // console.log(`requesting piece #${block.index} block #${blockIndex}`);
     socket.write(this.buildRequest(block));
 
   }
   download(peer) {
     try {
       const sock = new net.Socket()
+      this.sockets.push(sock);
       sock.on('error', ()=>{console.log})
       sock.connect(peer.port, peer.ip, () => {
         this.peerSockets[sock.address().port] =  {queue: [], have: [], choked: true}
@@ -341,6 +346,10 @@ export default class BitTorrentClient {
         this.onWholeMsg(sock, (msg,s) => this.msgHandler(msg,s))
       })
     } catch(e) {return;}
+  }
+  async stop() {
+    this.sockets.forEach(sock, () => {sock.destroy()})
+    return this.receivedPieces;
   }
 }
 

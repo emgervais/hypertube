@@ -7,3 +7,6 @@ __pycache__
 film
 *.mp4
 *.png
+*.avi
+*.webm
+src/server/movies/*
