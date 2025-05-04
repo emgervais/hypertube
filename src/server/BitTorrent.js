@@ -5,15 +5,17 @@ import bencode from 'bencode'
 import crypto from 'crypto'
 import net from 'net'
 
-class BitTorrentClient {
-  constructor() {
+export default class BitTorrentClient {
+  constructor(torrentUrl=null, received = null, filePath=null) {
     this.peer_id        = null
+    this.torrentUrl = torrentUrl
     this.torrent        = null
     this.totalPieces    = 0
     this.requestedPieces= null
-    this.receivedPieces= null
+    this.receivedPieces= received
     this.peerSockets = {}
-    this.file = 0
+    this.fileFd = 0
+    this.filePath = filePath
   }
 
   buildConnReq() {
@@ -79,15 +81,16 @@ class BitTorrentClient {
     sock.send(buf, 0, buf.length, +url.port, url.hostname)
   }
 
-  async getPeers(torrentPath) {
-    this.torrent = bencode.decode(fs.readFileSync(torrentPath));
+  async getPeers() {
+    const res = await fetch(this.torrentPath);
+    this.torrent = bencode.decode(Buffer.from(await res.arrayBuffer()));
+    this.fileFd = fs.openSync('film.' + Buffer.from(this.torrent.info['name']).toString("utf-8").split('.').pop(), 'w');
     const plen = this.torrent.info['piece length'];
-    const total = this.torrent.info.files
-      ? this.torrent.info.files.reduce((a,f)=>a+f.length,0)
-      : this.torrent.info.length;
+    const total = this.torrent.info.files ? this.torrent.info.files.reduce((a,f)=>a+f.length,0) : this.torrent.info.length;
     this.totalPieces = Math.ceil(total / plen);
     const arr = Array(this.totalPieces).fill(null);
-    this.receivedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
+    if (this.receivedPieces === null)
+      this.receivedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
     this.requestedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
     const socket = dgram.createSocket('udp4');
     const announceUrl = Buffer.from(this.torrent.announce).toString();
@@ -103,12 +106,12 @@ class BitTorrentClient {
         socket.close()
         const peers = this.parseAnnounce(buf)
 
-        const selected = await this.selectPeers(peers)
+        // const selected = await this.selectPeers(peers)
         peers.forEach(p=> this.download(p))
       }
     })
 
-    this.udpSend(socket, this.buildConnReq(), announceUrl)
+    this.udpSend(socket, this.buildConnReq(), announceUrl);
   }
 
 
@@ -286,7 +289,7 @@ class BitTorrentClient {
     console.log(`received piece #${block.index} block #${blockIndex}`);
     this.requestPiece(socket);
     const offset = block.index * this.torrent.info['piece length'] + block.begin;
-    fs.write(this.file, block.block, 0, block.block.length, offset, () => {});
+    fs.write(this.fileFd, block.block, 0, block.block.length, offset, () => {});
   }
   pieceLen(torrent, index) {
     const totalLen = Number(this.size(torrent).readBigUInt64BE(0));
@@ -331,7 +334,6 @@ class BitTorrentClient {
   download(peer) {
     try {
       const sock = new net.Socket()
-      this.file = fs.openSync('film.mp4', 'w');
       sock.on('error', ()=>{console.log})
       sock.connect(peer.port, peer.ip, () => {
         this.peerSockets[sock.address().port] =  {queue: [], have: [], choked: true}
@@ -342,7 +344,7 @@ class BitTorrentClient {
   }
 }
 
-(async function(){
-  const client = new BitTorrentClient()
-  await client.getPeers('s.torrent')
-})()
+// (async function(){
+//   const client = new BitTorrentClient()
+//   await client.getPeers('s.torrent')
+// })()

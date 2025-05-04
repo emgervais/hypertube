@@ -1,20 +1,31 @@
 import apiController from './apiController.js'
 import fs from 'fs'
-import path from 'path'
+import BitTorrentClient from '../BitTorrent.js';
+
+const activeDownloads = {};
+const innactivity = 60000;
 
 async function movieCreation(id, collection) {
-    const movieFilePath = path.join(process.cwd(), "src", "server", "movies", 'film.mp4');//id + '.mpg');
-    // const fd = fs.openSync(movieFilePath, 'w');
-    // fs.closeSync(fd);
+    // const movieFilePath = path.join(process.cwd(), "src", "server", "movies", id);
     const movie = await apiController.findMovie(id);
     if(!movie)
         return (null);
-    const DbMovie = await collection.insertOne({filmId: id, lastSeen: null, isDownloaded: false, movieLength: 293154834, bitBody: {
-        torrent: null,
-        file: movieFilePath,
-        blocks: new Set(),
+    const insertRes = await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, isDownloading: false, movieLength: null, bitBody: {
+        torrentUrl: null,
+        file: null,
+        blocks: [],
     }});
-    return (DbMovie)
+    if (!insertRes.acknowledged) {
+        console.error("Failed to insert movie into database");
+        return null;
+    }
+    const DbMovie = await collection.findOne({filmId: id});
+    return (DbMovie);
+}
+
+async function startDownload(movie) {
+    const bitInstance = new BitTorrentClient(movie.bitBody.torrentUrl, movie.bitBody.blocks, movie.bitBody.file);
+    await bitInstance.getPeers();
 }
 
 async function stream(req, reply) {
@@ -23,22 +34,15 @@ async function stream(req, reply) {
         const movie = await collection.findOne({filmId: req.query.id}) || await movieCreation(req.query.id, collection);
         if (movie === null)
             return reply.status(404).send({error: "Movie not available"});
-        //if downloaded start streaming else start the download
-        const range = req.range(movie.movieLength)
-        req.log.info({ range })
-        // if (!range) {
-        //   return reply.status(416).send();
-        // }
+        if(movie.isDownloaded === false && isDownloading === false) {
+            startDownload(movie);
+        }
         const stats = fs.statSync(movie.bitBody.file);
         const movieLength = stats.size;
+        const range = req.range(movieLength)
         if (!range) {
-            const fullStream = fs.createReadStream(movie.bitBody.file);
-            return reply
-              .status(200)
-              .header('Content-Type', 'video/mp4')
-              .header('Content-Length', movieLength)
-              .send(fullStream)
-          }
+          return reply.status(416).send();
+        }
         const {start} = range.ranges[0];
         const end = Math.min(start + 1 * 1e6 - 1, movieLength - 1);
         const stream = fs.createReadStream(movie.bitBody.file, { start, end });
