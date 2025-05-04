@@ -29,21 +29,23 @@ async function stream(req, reply) {
         // if (!range) {
         //   return reply.status(416).send();
         // }
+        const stats = fs.statSync(movie.bitBody.file);
+        const movieLength = stats.size;
         if (!range) {
             const fullStream = fs.createReadStream(movie.bitBody.file);
             return reply
               .status(200)
               .header('Content-Type', 'video/mp4')
-              .header('Content-Length', movie.movieLength)
-              .send(fullStream);
+              .header('Content-Length', movieLength)
+              .send(fullStream)
           }
         const {start} = range.ranges[0];
-        const end = Math.min(start + 1 * 1e6, movie.movieLength - 1);
+        const end = Math.min(start + 1 * 1e6 - 1, movieLength - 1);
         const stream = fs.createReadStream(movie.bitBody.file, { start, end });
         return reply
         .header('Accept-Ranges', 'bytes')
-        .header('Content-Range', `bytes ${start}-${end}/${movie.movieLength}`)
-        .header('Content-Length', end - start + 1)
+        .header('Content-Range', `bytes ${start}-${end}/${movieLength}`)
+        .header('Content-Length', end - start)
         .type('video/mp4')
         .status(206)
         .send(stream)

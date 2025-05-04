@@ -26,7 +26,6 @@ class BitTorrentClient {
   }
 
   buildAnnounceReq(connId) {
-    const t = this.torrent
     const buf = Buffer.alloc(98)
     connId.copy(buf,     0)               // connection_id
     buf.writeUInt32BE(1, 8)               // action = announce
