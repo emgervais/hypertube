@@ -53,7 +53,7 @@ const fastify = Fastify({
   credentials: true, 
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", 
   allowedHeaders: ["Content-Type,Authorization",'Range'],
-  exposedHeaders: ["set-cookie",'Accept-Ranges', 'Content-Range', 'Content-Length'],
+  exposedHeaders: ["set-cookie",'Accept-Ranges', 'Content-Range', 'Content-Length', 'Retry-After'],
   maxAge: 86900
 })
 .register(db, { forceClose: true, url: process.env.MONGODB_URI})

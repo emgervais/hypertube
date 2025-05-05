@@ -85,7 +85,14 @@ export default class BitTorrentClient {
   async getPeers(id) {
     const res = await fetch(this.torrentUrl);
     this.torrent = bencode.decode(Buffer.from(await res.arrayBuffer()));
-    const extension = Buffer.from(this.torrent.info['name']).toString("utf-8").split('.').pop();
+    let name;
+    const files = this.torrent.info['files']
+    if(files) {
+        name = files.reduce((file, max) => file.length > max.length ? file: max).path[0];
+    } else {
+        name = this.torrent.info['name'];
+    }
+    const extension = Buffer.from(name).toString("utf-8").split('.').pop();
     const filePath = path.join('src', 'server', 'movies', `${id}.${extension}`);
     this.fileFd = fs.openSync(filePath, 'w');
     const plen = this.torrent.info['piece length'];
@@ -104,7 +111,6 @@ export default class BitTorrentClient {
         const { connectionId } = this.parseConnection(buf)
         const areq = this.buildAnnounceReq(connectionId)
         this.udpSend(socket, areq, announceUrl)
-
       } else if (action === 1) {
         socket.close()
         const peers = this.parseAnnounce(buf)
@@ -118,7 +124,18 @@ export default class BitTorrentClient {
     return filePath;
   }
 
-
+  async fileSize() {
+    let total = 0;
+    if (!this.receivedPieces) return 0;
+    for (const [index, piece] of this.receivedPieces.entries()) {
+      console.log(piece)
+      if (!piece.every(i => i)) {
+        return total;
+      }
+      total += this.pieceLen(this.torrent, index);
+    }
+    return total;
+  }
   probeLatency(peer) {
     return new Promise((res, rej) => {
       const start = Date.now()
@@ -239,8 +256,9 @@ export default class BitTorrentClient {
     }
 
     for(let i = 0; i < this.totalPieces; i++) {
-        if(this.requestedPieces[i].every(j => j) === false && this.peerSockets[socket.address().port].have.includes(i)) {//something wrong here
+        if(this.requestedPieces[i].every(j => j) === false && this.peerSockets[socket.address().port].have.includes(i)) {
             this.requestedPieces[i] = this.requestedPieces[i].map(() => true);
+            console.log(`Downloading piece #${i}`)
             this.addQueue(i, this.peerSockets[socket.address().port].queue)
             break;
         }

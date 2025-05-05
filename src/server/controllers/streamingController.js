@@ -64,7 +64,8 @@ async function stream(req, reply) {
 
         const downloadInfo = activeDownloads[movie.imdb_code];
         if(!downloadInfo) {
-            startDownload(movie, collection);
+            await startDownload(movie, collection);
+            await new Promise(resolve => setTimeout(resolve, 1000));
         } else {
             clearTimeout(downloadInfo.timeout);
             downloadInfo.timeout = null;
@@ -75,7 +76,7 @@ async function stream(req, reply) {
             currentDownloadInfo.timeout = setTimeout(() => {
                 console.log('stop download');
                 stopDownload(movie.id, collection);
-            }, 30000);
+            }, 3000000);
         }
         const filePath = movie.bitBody?.file
 
@@ -83,26 +84,24 @@ async function stream(req, reply) {
             reply.header('Retry-After', 5);
             return reply.status(503).send({ error: "Download initializing, please try again shortly." });
         }
-
-        const stats = await fs.promises.stat(filePath);
-        const movieLength = stats.size;
-
-        if(!movieLength === 0) {
-            reply.header('Retry-After', 5);
-            return reply.status(503).send({ error: "Download initializing, please try again shortly." });
-        }
-
-        const range = req.range(movieLength)
-
+        const movieLength = await currentDownloadInfo.client.fileSize();
+        console.log(movieLength);
+        if(movieLength < 1000000)
+            return reply.status(416).header('Retry-After', 5).send()
+        const range = req.range(movieLength);
+        
         if (!range || range === -1 || range === -2) {
+            console.log(`Movie ID ${id}: Range unsatisfiable (start >= current size ${movieLength}).`);
             reply.header('Content-Range', `bytes */${movieLength}`);
-            return reply.status(416).send();
+            reply.header('Retry-After', 5);
+            return reply.status(503).send();
         }
-
         const {start} = range.ranges[0];
         const end = Math.min(start + 1 * 1e6 - 1, movieLength - 1);
+        
         if(start > end) {
             reply.header('Content-Range', `bytes */${movieLength}`);
+            reply.header('Retry-After', 5);
             return reply.status(416).send();
         }
         const stream = fs.createReadStream(filePath, { start, end });
