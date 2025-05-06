@@ -62,7 +62,7 @@ async function stream(req, reply) {
         if (movie === null)
             return reply.status(404).send({error: "Movie not available"});
 
-        const downloadInfo = activeDownloads[movie.imdb_code];
+        const downloadInfo = activeDownloads[id];
         if(!downloadInfo) {
             await startDownload(movie, collection);
             await new Promise(resolve => setTimeout(resolve, 1000));
