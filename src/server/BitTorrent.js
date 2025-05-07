@@ -16,7 +16,7 @@ export default class BitTorrentClient {
     this.receivedPieces= received
     this.peersList = {}
     this.unchokedPeers = {}
-    this.selectedPeers = {}
+    this.selectedPeers = new Set()
     this.exploration = true;
     this.fileFd = 0
     this.filePath = filePath
@@ -146,10 +146,10 @@ export default class BitTorrentClient {
   async selectPeers(isOptimistic) {
     const peersId = Object.keys(this.unchokedPeers);
     if(peersId.length <= 4) {
-      this.selectedPeers = {...this.unchokedPeers };
+      this.selectedPeers = new Set(peersId);
       return;
     }
-    this.selectedPeers = {};
+    this.selectedPeers = [];
     let optimisticCount = isOptimistic?1:0;
     if(this.exploration) {
       let count = 0;
@@ -163,21 +163,18 @@ export default class BitTorrentClient {
       }
       optimisticCount = 4;
     }
-    const selectedIds = new Set();
-    while (selectedIds.size < optimisticCount && selectedIds.size < peersId.length) {
+    while (this.selectedPeers.size < optimisticCount) {
         const randomIndex = Math.floor(Math.random() * peersId.length);
         const peerId = peersId[randomIndex];
-        if (!selectedIds.has(peerId)) {
-            selectedIds.add(peerId);
-            this.selectedPeers[peerId] = this.unchokedPeers[peerId];
+        if (!this.selectedPeers.has(peerId)) {
+          this.selectedPeers.add(peerId);
         }
     }
     if(this.exploration)
       return;
-    const sortedPeers = Object.entries(this.unchokedPeers).sort(([, a], [, b]) => b.downloadSpeed - a.downloadSpeed).slice(0, Math.min(3, peersId.length - 1));
-    for (const [peerId, peerData] of sortedPeers) {
-      this.selectedPeers[peerId] = peerData;
-    }
+    const sortedPeers = Object.keys(Object.entries(this.unchokedPeers).sort(([, a], [, b]) => b.downloadSpeed - a.downloadSpeed).slice(0, Math.min(3, peersId.length - 1)));
+    for(const peerId in sortedPeers)
+      this.selectedPeers.add(peerId);
 }
 
 
@@ -285,7 +282,7 @@ export default class BitTorrentClient {
     }
     //close connection get new peer
   }
-  requestHandler(pay, socket) {
+  requestHandler(pay, socketId) {
 
   }
   chokeHandler(socketId) {
@@ -320,39 +317,41 @@ export default class BitTorrentClient {
   }
 
   pieceHandler(block, socketId) {
+    this.peersList[socketId].downloadSpeed = this.peersList[socketId].requested.size / (Date.now() - this.peersList[socketId].requested.start)
     const blockIndex = block.begin / (1024 * 16)
     this.receivedPieces[block.index][blockIndex] = true;
     if(this.receivedPieces[block.index].every(i=>i))
       console.log(`Received full piece ${block.index}`);
-    this.requestPiece(socketId);
     const offset = block.index * this.torrent.info['piece length'] + block.begin;
     fs.write(this.fileFd, block.block, 0, block.block.length, offset, () => {});
+    if(this.selectedPeers.has(socketId))
+      this.requestPiece(socketId);
   }
-  pieceLen(torrent, index) {
-    const totalLen = Number(this.size(torrent).readBigUInt64BE(0));
+  pieceLen(index) {
+    const totalLen = Number(this.size().readBigUInt64BE(0));
     const pLen = torrent.info['piece length'];
     const lastPLen = totalLen % pLen;
     const lastPI = Math.floor(totalLen / pLen);
     return lastPI === index ? lastPLen : pLen;
   }
-  blockLen(torrent, pieceIndex, blockIndex) {
-    const pLen= this.pieceLen(torrent, pieceIndex);
+  blockLen(pieceIndex, blockIndex) {
+    const pLen= this.pieceLen(pieceIndex);
     const lastPLen = pLen % (16 * 1024);
     const lastPI = Math.floor(pLen / (16 * 1024));
 
     return blockIndex === lastPI ? lastPLen : 16 * 1024;
   }
-  blocksPerPiece(torrent, index) {
-    const pLen = this.pieceLen(torrent, index);
+  blocksPerPiece(index) {
+    const pLen = this.pieceLen(index);
     return Math.ceil(pLen / (16 * 1024));
   }
   addQueue(index, queue) {
-    const n = this.blocksPerPiece(this.torrent, index);
+    const n = this.blocksPerPiece(index);
     for (let i = 0; i< n; i++) {
         queue.push({
             index: index,
             begin: i * 16 * 1024,
-            length: this.blockLen(this.torrent, index, i)
+            length: this.blockLen(index, i)
         })
     }
   }
@@ -363,9 +362,8 @@ export default class BitTorrentClient {
     const block = this.peersList[socketId].queue.shift();
     const blockIndex = block.begin / (1024 * 16);
     this.requestedPieces[block.index][blockIndex] = true;
-    // console.log(`requesting piece #${block.index} block #${blockIndex}`);
     this.peersList[socketId].socket.write(this.buildRequest(block));
-
+    this.peersList[socketId].requested = {start: Date.now(), size: this.blockLen(block.index, blockIndex)};
   }
   startRotation() {
     let count = 0;
@@ -383,7 +381,7 @@ export default class BitTorrentClient {
       const socketId = `${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
       sock.on('error', ()=>{console.log})
       sock.connect(peer.port, peer.ip, () => {
-        this.peersList[socketId] =  {socket: sock, queue: [], have: [], choked: true, downloadSpeed: 0}
+        this.peersList[socketId] =  {socket: sock, queue: [], have: [], choked: true, downloadSpeed: 0, interested: false, requested: null}
         sock.write(this.buildHandshake())
         this.onWholeMsg((msg) => this.msgHandler(msg, socketId))
       });
