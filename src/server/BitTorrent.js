@@ -8,20 +8,20 @@ import net from 'net'
 
 export default class BitTorrentClient {
   constructor(torrentUrl=null, received = null, filePath=null) {
-    this.peer_id        = null
+    this.peer_id        = this.genId()
     this.torrentUrl = torrentUrl
     this.torrent        = null
     this.totalPieces    = 0
-    this.requestedPieces= null
+    this.requestedPieces= received
     this.receivedPieces= received
     this.peersList = {}
-    this.unchokedPeers = {}
+    this.interestedPeers = {}
     this.selectedPeers = new Set()
     this.exploration = true;
     this.fileFd = 0
     this.filePath = filePath
-    this.sockets = []
     this.isDownloading = true;
+    this.currentPlayBack = 0;
   }
 
   buildConnReq() {
@@ -39,7 +39,7 @@ export default class BitTorrentClient {
     buf.writeUInt32BE(1, 8)               // action = announce
     crypto.randomBytes(4).copy(buf, 12)   // transaction
     this.infoHash().copy(buf, 16)         // info_hash
-    this.genId().copy(buf, 36)            // peer_id
+    this.peer_id.copy(buf, 36)            // peer_id
     Buffer.alloc(8).copy(buf, 56)         // downloaded
     this.size().copy(buf, 64)             // left
     Buffer.alloc(8).copy(buf, 72)         // uploaded
@@ -143,48 +143,53 @@ export default class BitTorrentClient {
     return total;
   }
 
+  clearQueue(socketId) {
+    for(const block of this.peersList[socketId].queue) {
+      const blockIndex = block.begin / (1024 * 16)
+      this.requestedPieces[block.index][blockIndex] = false;
+    }
+  }
+  async sendUnchokes(newPeersList) {
+    for(id of newPeersList) {
+      if(this.selectedPeers.has(id))
+        this.selectedPeers.remove(id);
+      else
+        this.peersList[id].socket.write(Buffer.from([0,0,0,0,1]));//unchoke
+      this.peersList[id].uploadedBytes = 0;
+    }
+    for(id of this.selectedPeers) {
+      this.peersList[id].socket.write(Buffer.from([0,0,0,0,0]));//choke
+    }
+    this.selectedPeers = newPeersList;
+  }
+
   async selectPeers(isOptimistic) {
-    const peersId = Object.keys(this.unchokedPeers);
+    const peersId = Object.keys(this.interestedPeers);
+    const nextPeers = new Set()
     if(peersId.length <= 4) {
-      this.selectedPeers = new Set(peersId);
+      this.sendUnchokes(new Set(peersId))
       return;
     }
-    this.selectedPeers = [];
-    let optimisticCount = isOptimistic?1:0;
-    if(this.exploration) {
-      let count = 0;
-      for(const [key, value] of this.unchokedPeers) {
-        if(value.downloadSpeed)
-          count++;
-        if(count >= 8 || count > peersId.length / 2) {
-          this.exploration = false;
-          break;
-        }
-      }
-      optimisticCount = 4;
-    }
-    while (this.selectedPeers.size < optimisticCount) {
+    const optimisticCount = isOptimistic?0:1;
+    const sortedPeers = Object.keys(Object.entries(this.interestedPeers).sort(([, a], [, b]) => b.uploadedBytes - a.uploadedBytes).slice(0, 3 + optimisticCount));
+    for(const peerId in sortedPeers)
+      nextPeers.add(peerId);
+    while (nextPeers.size < 4) {
         const randomIndex = Math.floor(Math.random() * peersId.length);
         const peerId = peersId[randomIndex];
-        if (!this.selectedPeers.has(peerId)) {
-          this.selectedPeers.add(peerId);
+        if (!nextPeers.has(peerId)) {
+          nextPeers.add(peerId);
         }
     }
-    if(this.exploration)
-      return;
-    const sortedPeers = Object.keys(Object.entries(this.unchokedPeers).sort(([, a], [, b]) => b.downloadSpeed - a.downloadSpeed).slice(0, Math.min(3, peersId.length - 1)));
-    for(const peerId in sortedPeers)
-      this.selectedPeers.add(peerId);
+    this.sendUnchokes(nextPeers);
 }
 
 
   genId() {
-    if (!this.peer_id) {
-      this.peer_id = Buffer.alloc(20)
-      Buffer.from('-ET0001-').copy(this.peer_id,0)
-      crypto.randomBytes(12).copy(this.peer_id,8)
-    }
-    return this.peer_id
+    const peerId = Buffer.alloc(20)
+    Buffer.from('-ET0001-').copy(peerId,0)
+    crypto.randomBytes(12).copy(peerId,8)
+    return peerId
   }
 
   buildHandshake() {
@@ -194,7 +199,7 @@ export default class BitTorrentClient {
     buf.writeUInt32BE(0,20)
     buf.writeUInt32BE(0,24)
     this.infoHash().copy(buf,28)
-    this.genId().copy(buf,48)
+    this.peer_id.copy(buf,48)
     return buf
   }
 
@@ -215,16 +220,16 @@ export default class BitTorrentClient {
     return b
   }
 
-  onWholeMsg(socket, cb) {
+  onWholeMsg(socketId) {
     let buf = Buffer.alloc(0);
     let handshake = true;
-  
+    const socket = this.peersList[socketId].socket;
     socket.on('data', recvBuf => {
       const msgLen = () => handshake ? buf.readUInt8(0) + 49 : buf.readInt32BE(0) + 4;
       buf = Buffer.concat([buf, recvBuf]);
   
       while (buf.length >= 4 && buf.length >= msgLen()) {
-        cb(buf.subarray(0, msgLen()), socket);
+        this.msgHandler(buf.subarray(0, msgLen()), socketId);
         buf = buf.subarray(msgLen());
         handshake = false;
       }
@@ -248,13 +253,12 @@ export default class BitTorrentClient {
       };
       pay[id === 7 ? 'block' : 'length'] = rest;
     }
-    // console.log(`received message ${id} from ${socketId}`)
     try {
       switch(id) {
         case 0: this.chokeHandler(socketId); break
         case 1: this.unchokeHandler(socketId); break
-        case 2: break;
-        case 3: break;
+        case 2: this.interestHandler;
+        case 3: this.uninterestHandler;
         case 4: this.haveHandler(pay,socketId); break
         case 5: this.bitfieldHandler(pay,socketId); break
         case 6: this.requestHandler(pay, socketId); break
@@ -267,35 +271,64 @@ export default class BitTorrentClient {
     }
   }
   getNextPiece(socketId) {
-    if(this.requestedPieces.every(blocks => blocks.every(i => i)) === true) {
-        if(this.receivedPieces.every(blocks => blocks.every(i => i)) === false)
-            this.requestedPieces = structuredClone(this.receivedPieces);
-    }
-
-    for(let i = 0; i < this.totalPieces; i++) {
-        if(this.requestedPieces[i].every(j => j) === false && this.peersList[socketId].have.includes(i)) {
-            this.requestedPieces[i] = this.requestedPieces[i].map(() => true);
-            console.log(`Downloading piece #${i}`)
-            this.addQueue(i, this.peersList[socketId].queue)
-            break;
+    const peer = this.peersList[socketId];
+    let startPiece = Math.floor(this.currentPlayBack / this.torrent.info['piece length']);
+    for (let pi = startPiece; pi < this.totalPieces; pi++) {
+      const nBlocks = this.blocksPerPiece(pi);
+      for (let bi = 0; bi < nBlocks; bi++) {
+        if (!this.requestedPieces[pi][bi]) {
+          this.requestedPieces[pi][bi] = true;
+          const block = { index: pi, begin: bi * 16*1024, length: this.blockLen(pi, bi)}
+          peer.queue.push(block);
+          return block;
         }
+      }
     }
-    //close connection get new peer
+    return null;
   }
-  requestHandler(pay, socketId) {
+  interestHandler(socketId) {
+    this.interestedPeers[socketId] = this.peersList[socketId];
+  }
+  uninterestHandler(socketId) {
+    delete this.interestedPeers[socketId];
+  }
+  requestHandler({ index, begin, length }, socketId) {
+    if (
+      !this.uploadUnchoked.has(socketId)
+      && peerId !== this.optimisticUnchoke
+    ) return;
 
+    const offset = index * this.torrent.info['piece length'] + begin;
+    const buf = Buffer.alloc(length);
+    fs.read(
+      this.fileFd, buf, 0, length, offset,
+      (err, bytesRead) => {
+        if (err || bytesRead === 0) return;
+        const msg = Buffer.alloc(13 + length);
+        msg.writeUInt32BE(9 + length, 0); 
+        msg.writeUInt8(7, 4);
+        msg.writeUInt32BE(index, 5);
+        msg.writeUInt32BE(begin, 9);
+        buf.copy(msg, 13);
+        this.peersList[socketId].socket.write(msg);
+        const peer = this.peersList[socketId];
+        peer.uploadedBytes = (peer.uploadedBytes || 0) + length;
+      }
+    );
   }
   chokeHandler(socketId) {
-    // console.log(socketId, " Choked us.");
-    delete this.unchokedPeers[socketId]
-    // delete this.peersList[socketId]
-    // socket.close();
-    // get new peer
+    console.log(`socket ${socketId} choked us`);
+    this.peersList[socketId].choked = true;
+    this.clearQueue(socketId);
+    this.peersList[socketId].queue = [];
   }
 
   unchokeHandler(socketId) {
-    // console.log(socketId, " Unchoked us.");
-    this.unchokedPeers[socketId] = this.peersList[socketId];
+    console.log(`socket ${socketId} unchoked us`);
+    this.peersList[socketId].choked = false;
+    for (let i = 0; i < 5; i++) {
+      this.requestPiece(socketId);
+    }
   }
 
   haveHandler(payload, socketId) {
@@ -315,21 +348,19 @@ export default class BitTorrentClient {
       }
     }
   }
-
   pieceHandler(block, socketId) {
-    this.peersList[socketId].downloadSpeed = this.peersList[socketId].requested.size / (Date.now() - this.peersList[socketId].requested.start)
     const blockIndex = block.begin / (1024 * 16)
     this.receivedPieces[block.index][blockIndex] = true;
     if(this.receivedPieces[block.index].every(i=>i))
       console.log(`Received full piece ${block.index}`);
     const offset = block.index * this.torrent.info['piece length'] + block.begin;
     fs.write(this.fileFd, block.block, 0, block.block.length, offset, () => {});
-    if(this.selectedPeers.has(socketId))
-      this.requestPiece(socketId);
+    this.peersList[socketId].queue = this.peersList[socketId].queue.filter((b) => b.index !== block.index && block.begin !== b.begin);
+    this.requestPiece(socketId);
   }
   pieceLen(index) {
     const totalLen = Number(this.size().readBigUInt64BE(0));
-    const pLen = torrent.info['piece length'];
+    const pLen = this.torrent.info['piece length'];
     const lastPLen = totalLen % pLen;
     const lastPI = Math.floor(totalLen / pLen);
     return lastPI === index ? lastPLen : pLen;
@@ -356,14 +387,11 @@ export default class BitTorrentClient {
     }
   }
   requestPiece(socketId) {
-    if(!this.unchokedPeers[socketId]) return;
-    if(this.peersList[socketId].queue.length === 0)
-        this.getNextPiece(socketId);
-    const block = this.peersList[socketId].queue.shift();
-    const blockIndex = block.begin / (1024 * 16);
-    this.requestedPieces[block.index][blockIndex] = true;
-    this.peersList[socketId].socket.write(this.buildRequest(block));
-    this.peersList[socketId].requested = {start: Date.now(), size: this.blockLen(block.index, blockIndex)};
+    const peer = this.peersList[socketId];
+    if (peer.choked || peer.queue.length >= 5) return;
+    const block = this.getNextPiece(socketId);
+    if (!block) return;
+    peer.socket.write(this.buildRequest(block));
   }
   startRotation() {
     let count = 0;
@@ -377,23 +405,28 @@ export default class BitTorrentClient {
   download(peer) {
     try {
       const sock = new net.Socket()
-      this.sockets.push(sock);
       const socketId = `${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
-      sock.on('error', ()=>{console.log})
+      sock.on('error', ()=>{
+        if(this.peersList[socketId]) {
+          this.clearQueue(socketId);
+        }
+      });
       sock.connect(peer.port, peer.ip, () => {
-        this.peersList[socketId] =  {socket: sock, queue: [], have: [], choked: true, downloadSpeed: 0, interested: false, requested: null}
+        this.peersList[socketId] =  {socket: sock, queue: [], have: [], choked: true, uploadedBytes: 0, interested: false, requested: null}
         sock.write(this.buildHandshake())
-        this.onWholeMsg((msg) => this.msgHandler(msg, socketId))
+        this.onWholeMsg(socketId);
       });
     } catch(e) {return;}
   }
   async stop() {
-    this.sockets.forEach(sock, () => {sock.destroy()})
+    for([id, peer] of this.peersList) {
+      peer.socket.destroy();
+    }
     return this.receivedPieces;
   }
 }
 
-(async function(){
-  const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/063A8D1602B018CEF86F34FF540D69D29F46CBBA', null, 'src/server/movies/tt9419884.mp4');
-  bitInstance.getPeers('tt9419884')
-})()
+// (async function(){
+//   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/063A8D1602B018CEF86F34FF540D69D29F46CBBA', null, 'src/server/movies/tt9419884.mp4');
+//   bitInstance.getPeers('tt9419884')
+// })()

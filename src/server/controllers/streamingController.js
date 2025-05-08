@@ -85,25 +85,21 @@ async function stream(req, reply) {
             return reply.status(503).send({ error: "Download initializing, please try again shortly." });
         }
         const movieLength = await currentDownloadInfo.client.fileSize();
-        console.log(movieLength);
         if(movieLength < 1000000)
-            return reply.status(416).header('Retry-After', 5).send()
+            return reply.status(503).header('Retry-After', 5).send()
         const range = req.range(movieLength);
         
         if (!range || range === -1 || range === -2) {
-            console.log(`Movie ID ${id}: Range unsatisfiable (start >= current size ${movieLength}).`);
-            reply.header('Content-Range', `bytes */${movieLength}`);
-            reply.header('Retry-After', 5);
-            return reply.status(503).send();
+            console.log(`Movie ID ${id}: Range unsatisfiable (start >= ${movieLength}).`);
+            return reply
+            .header('Accept-Ranges', 'bytes')
+            .header('Content-Range', `bytes */${movieLength}`)
+            .header('Content-Length', '0')
+            .status(206)
+            .send();
         }
         const {start} = range.ranges[0];
         const end = Math.min(start + 1 * 1e6 - 1, movieLength - 1);
-        
-        if(start > end) {
-            reply.header('Content-Range', `bytes */${movieLength}`);
-            reply.header('Retry-After', 5);
-            return reply.status(416).send();
-        }
         const stream = fs.createReadStream(filePath, { start, end });
 
         stream.on('error', (e) => {

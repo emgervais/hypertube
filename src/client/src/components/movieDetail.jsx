@@ -17,7 +17,7 @@ export default function MovieDetail() {
         if(!video)
             return;
         const res = await fetch(`http://localhost:8080/stream?id=${location.state.movie.id}`, { method: 'HEAD' })
-        if (res.status === 416 && res.headers.has('Retry-After')) {
+        if (res.status === 503 && res.headers.has('Retry-After')) {
             const retryAfter = parseInt(res.headers.get('Retry-After'), 10);
             cooldown(retryAfter || 1);
           }
