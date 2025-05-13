@@ -14,6 +14,7 @@ const loginSchema = S.object()
 
 const streamingSchema = S.object()
     .prop('id', S.string().required())
+    .prop('segment', S.integer().required())
 
 const updateSchema = S.object()
     .prop('name', S.string().minLength(1))

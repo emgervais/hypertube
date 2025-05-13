@@ -3,7 +3,6 @@ import cors from '@fastify/cors'
 import fjwt from '@fastify/jwt'
 import db from "@fastify/mongodb"
 import oauthPlugin from '@fastify/oauth2'
-import fastifyRange from 'fastify-range'
 import fastifySwagger from '@fastify/swagger'
 import fastifySwaggerUI from '@fastify/swagger-ui'
 import dotenv from 'dotenv'
@@ -97,7 +96,6 @@ const fastify = Fastify({
   req.jwt = fastify.jwt
   return next()
 })
-.register(fastifyRange)
 .register(authRoutes, {prefix: '/auth'})
 .register(userRoutes, {prefix: '/user'})
 .register(apiRoutes, {prefix: '/api'})

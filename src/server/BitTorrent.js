@@ -12,8 +12,13 @@ export default class BitTorrentClient {
     this.torrentUrl = torrentUrl
     this.torrent        = null
     this.totalPieces    = 0
-    this.requestedPieces= received
-    this.receivedPieces= received
+    if (received !== null) {
+      this.receivedPieces = received;
+      this.requestedPieces = received.map(piece => piece.map(block => block ? true : false));
+  } else {
+      this.receivedPieces = null;
+      this.requestedPieces = null;
+  }
     this.peersList = {}
     this.interestedPeers = {}
     this.selectedPeers = new Set()
@@ -82,11 +87,21 @@ export default class BitTorrentClient {
     return peers
   }
 
-  udpSend(sock, buf, rawUrl) {
-    const url = URL.parse(rawUrl)
-    sock.send(buf, 0, buf.length, +url.port, url.hostname)
+  udpSend(sock, buf) {
+    for (const announceUrlRaw of this.torrent['announce-list']) {
+      try {
+        const announceUrl = Buffer.from(announceUrlRaw[0]).toString('utf8');
+        
+        const url = URL.parse(announceUrl)
+        sock.send(buf, 0, buf.length, +url.port, url.hostname);
+      } catch (error) {
+        console.log(`Failed to connect to tracker: ${error.message}`);
+      }
+    }
   }
+
   async getPeers(id) {
+    // console.log(JSON.stringify(this.requestedPieces));
     const res = await fetch(this.torrentUrl);
     this.torrent = bencode.decode(Buffer.from(await res.arrayBuffer()));
     let name;
@@ -103,19 +118,23 @@ export default class BitTorrentClient {
     const total = this.torrent.info.files ? this.torrent.info.files.reduce((a,f)=>a+f.length,0) : this.torrent.info.length;
     this.totalPieces = Math.ceil(total / plen);
     const arr = Array(this.totalPieces).fill(null);
-    if (this.receivedPieces === null)
+    if (this.receivedPieces === null) {
       this.receivedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
-    this.requestedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
+      this.requestedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(this.torrent, i)).fill(false));
+    }
     const socket = dgram.createSocket('udp4');
-    const announceUrl = Buffer.from(this.torrent.announce).toString();
-
+    let received = false;
+    this.udpSend(socket, this.buildConnReq());
     socket.on('message', async buf => {
+      if(received) return;
       const action = buf.readUInt32BE(0)
       if (action === 0) {
         const { connectionId } = this.parseConnection(buf);
         const areq = this.buildAnnounceReq(connectionId)
-        this.udpSend(socket, areq, announceUrl)
+        this.udpSend(socket, areq);
       } else if (action === 1) {
+        received = true;
+        console.log("launch")
         socket.close()
         const peers = this.parseAnnounce(buf)
 
@@ -125,8 +144,8 @@ export default class BitTorrentClient {
       }, 3000);
       }
     })
+    socket.on('error', () => {})
 
-    this.udpSend(socket, this.buildConnReq(), announceUrl);
     return filePath;
   }
 
@@ -134,7 +153,6 @@ export default class BitTorrentClient {
     let total = 0;
     if (!this.receivedPieces) return 0;
     for (const [index, piece] of this.receivedPieces.entries()) {
-      console.log(piece)
       if (!piece.every(i => i)) {
         return total;
       }
@@ -350,9 +368,10 @@ export default class BitTorrentClient {
   }
   pieceHandler(block, socketId) {
     const blockIndex = block.begin / (1024 * 16)
+    if(this.receivedPieces[block.index][blockIndex]) return;
     this.receivedPieces[block.index][blockIndex] = true;
     if(this.receivedPieces[block.index].every(i=>i))
-      console.log(`Received full piece ${block.index}`);
+      console.log(`Received full piece ${block.index} from ${socketId}`);
     const offset = block.index * this.torrent.info['piece length'] + block.begin;
     fs.write(this.fileFd, block.block, 0, block.block.length, offset, () => {});
     this.peersList[socketId].queue = this.peersList[socketId].queue.filter((b) => b.index !== block.index && block.begin !== b.begin);
@@ -405,7 +424,7 @@ export default class BitTorrentClient {
   download(peer) {
     try {
       const sock = new net.Socket()
-      const socketId = `${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+      const socketId = `${Math.random().toString(36).substring(2, 9)}`;
       sock.on('error', ()=>{
         if(this.peersList[socketId]) {
           this.clearQueue(socketId);
@@ -419,14 +438,22 @@ export default class BitTorrentClient {
     } catch(e) {return;}
   }
   async stop() {
-    for([id, peer] of this.peersList) {
+    this.isDownloading = false;
+    for(const [id, peer] of Object.entries(this.peersList)) {
       peer.socket.destroy();
     }
+    
     return this.receivedPieces;
   }
 }
 
 // (async function(){
-//   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/063A8D1602B018CEF86F34FF540D69D29F46CBBA', null, 'src/server/movies/tt9419884.mp4');
-//   bitInstance.getPeers('tt9419884')
-// })()
+//   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', null, null);
+//   const file = bitInstance.getPeers('tt5463162');
+//   await new Promise(resolve => setTimeout(resolve, 10000));
+//   const pieces = await bitInstance.stop();
+//   const bitInstance2 = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', pieces, file);
+//   bitInstance2.getPeers('tt5463162');
+//   await new Promise(resolve => setTimeout(resolve, 20000));
+//   bitInstance2.stop();
+// })()     

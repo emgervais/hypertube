@@ -18,9 +18,9 @@ async function movieCreation(id, collection) {
     if(!movie)
         return (null);
     const torrentUrl = await chooseTorrent(movie[0].torrents);
-    const insertRes = await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, bitBody: {
+    const insertRes = await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: true, bitBody: {
         torrentUrl: torrentUrl,
-        file: null,
+        file: 'src/server/movies/tt1211837.mp4',
         blocks: null,
     }});
     if (!insertRes.acknowledged) {
@@ -33,6 +33,7 @@ async function movieCreation(id, collection) {
 }
 
 async function startDownload(movie, collection) {
+    console.log('in')
     const bitInstance = new BitTorrentClient(movie.bitBody.torrentUrl, movie.bitBody.blocks, movie.bitBody.file);
     activeDownloads[movie.filmId] = {client: bitInstance, timeout: null}
     const filePath = await bitInstance.getPeers(movie.filmId);
@@ -40,92 +41,114 @@ async function startDownload(movie, collection) {
         await collection.findOneAndUpdate({filmId: movie.filmId}, {$set: {"bitBody.file": filePath}});
 }
 
-async function stopDownload(id, collection) {
-    const downloadInfo = activeDownloads[id];
-    if (downloadInfo) {
-        clearTimeout(downloadInfo.timeout);
-        delete activeDownloads[id];
-        try {
-            const blocks = await downloadInfo.client.stop();
-            await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": blocks}})
-        } catch (e) {
-            console.log(e);
+async function stopDownload(req, reply) {
+    const collection = this.mongo.db.collection('movies');
+    for(const [id, downloadInfo] of Object.entries(activeDownloads)) {
+        if (downloadInfo) {
+            clearTimeout(downloadInfo.timeout);
+            try {
+                const blocks = await downloadInfo.client.stop();
+                await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": blocks}})
+                delete activeDownloads[id];
+            } catch (e) {
+                console.log(e);
+            }
         }
     }
+    return reply.status(200).send(activeDownloads);
+    // const downloadInfo = activeDownloads[id];
 }
 
 async function stream(req, reply) {
     try {
-        const id = req.query.id;
+        const { id, segment } = req.query;
+
+        if (!id || segment === undefined) {
+            return reply.status(400).send({ error: "Missing 'id' or 'segment' query parameter." });
+        }
+
+        const segmentIndex = parseInt(segment, 10);
+        if (isNaN(segmentIndex) || segmentIndex < 0) {
+            return reply.status(400).send({ error: "Invalid 'segment' parameter." });
+        }
+
         const collection = this.mongo.db.collection('movies');
-        const movie = await collection.findOne({filmId: id}) || await movieCreation(id, collection);
-        if (movie === null)
-            return reply.status(404).send({error: "Movie not available"});
+        const movie = await collection.findOne({ filmId: id }) || await movieCreation(id, collection);
 
-        const downloadInfo = activeDownloads[id];
-        if(!downloadInfo) {
+        if (!movie) {
+            return reply.status(404).send({ error: "Movie not available." });
+        }
+
+        if (!activeDownloads[id] && !movie.isDownloaded) {
             await startDownload(movie, collection);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        } else {
-            clearTimeout(downloadInfo.timeout);
-            downloadInfo.timeout = null;
+            return reply.status(503).header('Retry-After', 7).send();
         }
-
-        const currentDownloadInfo = activeDownloads[id];
-        if (currentDownloadInfo) {
-            currentDownloadInfo.timeout = setTimeout(() => {
-                console.log('stop download');
-                stopDownload(movie.id, collection);
-            }, 3000000);
-        }
-        const filePath = movie.bitBody?.file
-
-        if (!filePath) {
-            reply.header('Retry-After', 5);
-            return reply.status(503).send({ error: "Download initializing, please try again shortly." });
-        }
-        const movieLength = await currentDownloadInfo.client.fileSize();
-        if(movieLength < 1000000)
-            return reply.status(503).header('Retry-After', 5).send()
-        const range = req.range(movieLength);
         
-        if (!range || range === -1 || range === -2) {
-            console.log(`Movie ID ${id}: Range unsatisfiable (start >= ${movieLength}).`);
-            return reply
-            .header('Accept-Ranges', 'bytes')
-            .header('Content-Range', `bytes */${movieLength}`)
-            .header('Content-Length', '0')
-            .status(206)
-            .send();
+        const filePath = movie.bitBody?.file || movie.filePath;
+        if (!filePath) {
+            return reply.status(500).send({ error: "File path configuration error." });
         }
-        const {start} = range.ranges[0];
-        const end = Math.min(start + 1 * 1e6 - 1, movieLength - 1);
-        const stream = fs.createReadStream(filePath, { start, end });
-
-        stream.on('error', (e) => {
-            console.log(e)
-            if (!reply.sent) {
-                reply.status(500).send({ error: 'Error reading movie' });
+        if (!fs.existsSync(filePath)) {
+            return reply.status(503).header('Retry-After', 10).send({ error: "File not yet created by download." });
+        }
+        try {
+            if (fs.statSync(filePath).size === 0) {
+                return reply.status(503).header('Retry-After', 10).send({ error: "File is empty, download in progress." });
             }
-        });
+        } catch (statError) {
+            return reply.status(503).header('Retry-After', 10).send({ error: "Error accessing file stats." });
+        }
+        
+        const segmentDuration = 2;
+        const startTime = segmentIndex * segmentDuration;
+        if (!movie.isDownloaded) {
+            if(activeDownloads[id].timeout)
+                clearTimeout(activeDownloads[id].timeout);
+            const downloadedBytes = await activeDownloads[id].client.fileSize();
+            // console.log(startTime, downloadedBytes);
+            if ((startTime + segmentDuration) * 500_000 >= downloadedBytes) {
+                return reply.status(503).header('Retry-After', 15).send({ error: "Download in progress, requested segment not yet available." });
+            }
+        }
+        try {
+            const command = ffmpeg(filePath)
+            .inputOptions([`-ss ${startTime}`])
+            .outputOptions([
+              '-t 30',
+              '-c:v copy',
+              '-c:a copy',
+              '-movflags +frag_keyframe+empty_moov+default_base_moof',
+              '-f mp4'
+            ])
+            .on('start', (cmd) => console.log('[FFmpeg] Started:', cmd))
+            .on('stderr', (stderrLine) => console.log('[FFmpeg] STDERR:', stderrLine))
+            .on('error', (err) => console.error('[FFmpeg] ERROR:', err.message))
+            .on('end', () => console.log('[FFmpeg] Finished successfully'))
+            reply.header('Content-Type', 'video/mp4'); 
+            reply.status(200);
+            return reply.send(command.pipe());
+        } catch(e) {
+            console.log(e);
+        }
 
-        return reply
-        .header('Accept-Ranges', 'bytes')
-        .header('Content-Range', `bytes ${start}-${end}/${movieLength}`)
-        .header('Content-Length', end - start + 1)
-        .header('Content-Type', 'video/mp4')
-        .status(206)
-        .send(stream)
-    } catch(e) {
-        console.log(e);
-        reply.status(500).send({error: 'Internal server error'})
+    } catch (err) {
+        const segmentQuery = req.query && req.query.segment ? req.query.segment : "N/A";
+        console.error(`[Segment ${segmentQuery}] Unhandled error in stream function for movie ${req.query?.id}: ${err.message}`, err.stack);
+        if (reply && !reply.sent) {
+            return reply.status(500).send({ error: 'Internal server error in stream function.', details: err.message });
+        } else if (reply && reply.sent) {
+            console.error(`[Segment ${segmentQuery}] Unhandled error in stream function occurred after headers were sent.`);
+            if (reply.raw && typeof reply.raw.destroy === 'function' && !reply.raw.destroyed) {
+                reply.raw.destroy();
+            }
+        }
     }
 }
 
 async function getAllMovies(req, reply) {
     try {
         const collection = this.mongo.db.collection('movies');
-        const movies = await collection.find().toArray();
+        const movies = await collection.findOne({filmId: 'tt1211837'})//collection.find().toArray();
         reply.send(movies);
     } catch(e) {
         console.log(e);
@@ -144,4 +167,4 @@ async function deleteMovie(req, reply) {
     }
 }
 
-export default { stream, getAllMovies, deleteMovie }
+export default { stream, getAllMovies, deleteMovie, stopDownload }
