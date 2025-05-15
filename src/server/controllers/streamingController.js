@@ -19,6 +19,7 @@ async function movieCreation(id, collection) {
         return (null);
     const torrentUrl = await chooseTorrent(movie[0].torrents);
     const insertRes = await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: true, bitBody: {
+        length: 2525,
         torrentUrl: torrentUrl,
         file: 'src/server/movies/tt1211837.mp4',
         blocks: null,
@@ -33,10 +34,9 @@ async function movieCreation(id, collection) {
 }
 
 async function startDownload(movie, collection) {
-    console.log('in')
     const bitInstance = new BitTorrentClient(movie.bitBody.torrentUrl, movie.bitBody.blocks, movie.bitBody.file);
     activeDownloads[movie.filmId] = {client: bitInstance, timeout: null}
-    const filePath = await bitInstance.getPeers(movie.filmId);
+    const [filePath, movieLength] = await bitInstance.getPeers(movie.filmId);
     if (movie.bitBody.file === null)
         await collection.findOneAndUpdate({filmId: movie.filmId}, {$set: {"bitBody.file": filePath}});
 }
@@ -59,13 +59,20 @@ async function stopDownload(req, reply) {
     // const downloadInfo = activeDownloads[id];
 }
 
+async function manifest(req, reply) {
+    const {id} = req.query;
+    try {
+        const collection = this.mongo.db.collection('movies');
+        const movie = await collection.findOne({filmId: id});
+        return reply.status(200).send({length: movie.bitBody.length});
+    } catch(e) {
+
+    }
+    
+}
 async function stream(req, reply) {
     try {
-        const { id, segment } = req.query;
-
-        if (!id || segment === undefined) {
-            return reply.status(400).send({ error: "Missing 'id' or 'segment' query parameter." });
-        }
+        const { id, segment, init } = req.query;
 
         const segmentIndex = parseInt(segment, 10);
         if (isNaN(segmentIndex) || segmentIndex < 0) {
@@ -99,7 +106,7 @@ async function stream(req, reply) {
             return reply.status(503).header('Retry-After', 10).send({ error: "Error accessing file stats." });
         }
         
-        const segmentDuration = 2;
+        const segmentDuration = 30;
         const startTime = segmentIndex * segmentDuration;
         if (!movie.isDownloaded) {
             if(activeDownloads[id].timeout)
@@ -116,15 +123,16 @@ async function stream(req, reply) {
             .outputOptions([
               '-t 30',
               '-c:v copy',
-              '-c:a copy',
+              '-c:a aac',
               '-movflags +frag_keyframe+empty_moov+default_base_moof',
-              '-f mp4'
+              '-f mp4',
+              '-r 24'
             ])
             .on('start', (cmd) => console.log('[FFmpeg] Started:', cmd))
             .on('stderr', (stderrLine) => console.log('[FFmpeg] STDERR:', stderrLine))
             .on('error', (err) => console.error('[FFmpeg] ERROR:', err.message))
             .on('end', () => console.log('[FFmpeg] Finished successfully'))
-            reply.header('Content-Type', 'video/mp4'); 
+            reply.header('Content-Type', 'video/mp4');
             reply.status(200);
             return reply.send(command.pipe());
         } catch(e) {
@@ -167,4 +175,4 @@ async function deleteMovie(req, reply) {
     }
 }
 
-export default { stream, getAllMovies, deleteMovie, stopDownload }
+export default { stream, getAllMovies, deleteMovie, stopDownload, manifest }

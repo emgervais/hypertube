@@ -10,10 +10,9 @@ export default function MovieDetail() {
   const mp4boxFile = useRef(MP4Box.createFile());
   const nextSegmentIndex = useRef(0);
 
-  // Your existing fetch-with-retries logic
   const fetchSegment = async (index) => {
     let retries = 0;
-    while (retries < 5) {
+    while (retries < 10) {
       try {
         const res = await fetch(`http://127.0.0.1:8080/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -21,7 +20,7 @@ export default function MovieDetail() {
       } catch (err) {
         retries++;
         console.warn(`Retrying segment ${index} (attempt ${retries})`);
-        await new Promise(r => setTimeout(r, 2000));  // back-off
+        await new Promise(r => setTimeout(r, 2000));
       }
     }
     throw new Error(`Failed to fetch segment ${index}`);
@@ -33,30 +32,29 @@ export default function MovieDetail() {
     videoRef.current.src = URL.createObjectURL(mediaSource);
 
     mediaSource.addEventListener('sourceopen', async () => {
-      // 1) grab init segment
       const initBuf = await fetchSegment(0);
+      const res = await fetch(`http://127.0.0.1:8080/stream/manifest?id=${location.state.movie.id}`);
+      const manifest = await res.json();
+      mediaSourceRef.current.duration = manifest.length;
       initBuf.fileStart = 0;
       mp4boxFile.current.onReady = onMp4Ready;
       mp4boxFile.current.appendBuffer(initBuf);
       mp4boxFile.current.flush();
     });
+    videoRef.current.addEventListener('timeupdate', cleanupBuffer);
   };
 
   const onMp4Ready = (info) => {
-    // only run once
     mp4boxFile.current.onReady = null;
 
-    // build a proper MIME string:
     const videoTrack = info.tracks.find(t => t.video);
     const audioTrack = info.tracks.find(t => t.audio);
     const codecs = [videoTrack.codec, audioTrack?.codec].filter(Boolean).join(', ');
     const mime = `video/mp4; codecs="${codecs}"`;
-
-    // make the SourceBuffer
     const sb = mediaSourceRef.current.addSourceBuffer(mime);
     sourceBufferRef.current = sb;
+    sourceBufferRef.current.mode = 'sequence';
 
-    // prepare to segment out media chunks
     const trackIDs = info.tracks.map(t => t.id);
     mp4boxFile.current.setSegmentOptions(trackIDs, { nbSamples: 1000 });
     mp4boxFile.current.initializeSegmentation();
@@ -64,21 +62,31 @@ export default function MovieDetail() {
       sb.appendBuffer(segmentBuffer);
     };
 
-    // once init (and first onSegment) is in, start pumping media segments
-    nextSegmentIndex.current = 1;
+    nextSegmentIndex.current = 0;
     sb.addEventListener('updateend', pumpNextSegment);
+    pumpNextSegment()
   };
-
+  const cleanupBuffer = () => {
+    if(sourceBufferRef.current && !sourceBufferRef.current.updating) {
+        const currentTime = videoRef.current.currentTime;
+        const buffered = sourceBufferRef.current.buffered;
+        if(buffered.length) {
+            const start = buffered.start(0);
+            if(currentTime - start > 30) {
+                sourceBufferRef.current.remove(start, currentTime - 30);
+            }
+        }
+    }
+  };
   const pumpNextSegment = async () => {
     const i = nextSegmentIndex.current++;
     try {
-      // optional throttle delay here:
-      // await new Promise(r => setTimeout(r, 100));  
 
       const buf = await fetchSegment(i);
-      sourceBufferRef.current.appendBuffer(buf); 
-    } catch {
-      // end of stream (or fatal error)
+      // sourceBufferRef.current.timestampOffset + 30 * (i);
+      sourceBufferRef.current.appendBuffer(buf);
+    } catch(e) {
+      console.log(e)
       mediaSourceRef.current.endOfStream();
     }
   };
