@@ -9,6 +9,7 @@ export default function MovieDetail() {
   const mediaSourceRef = useRef(null);
   const mp4boxFile = useRef(MP4Box.createFile());
   const nextSegmentIndex = useRef(0);
+  const segmentSize = 5;
 
   const fetchSegment = async (index) => {
     let retries = 0;
@@ -30,7 +31,14 @@ export default function MovieDetail() {
     const mediaSource = new MediaSource();
     mediaSourceRef.current = mediaSource;
     videoRef.current.src = URL.createObjectURL(mediaSource);
-
+    setInterval(() => {
+      if(!sourceBufferRef.current.buffered.length) return;
+      const start = sourceBufferRef.current.buffered.start(0);
+      const end = videoRef.current.currentTime - 30;
+      if(sourceBufferRef.current.updating || start >= end)
+        return;
+      sourceBufferRef.current.remove(start, end);
+    }, 1000);
     mediaSource.addEventListener('sourceopen', async () => {
       const initBuf = await fetchSegment(0);
       const res = await fetch(`http://127.0.0.1:8080/stream/manifest?id=${location.state.movie.id}`);
@@ -41,7 +49,6 @@ export default function MovieDetail() {
       mp4boxFile.current.appendBuffer(initBuf);
       mp4boxFile.current.flush();
     });
-    videoRef.current.addEventListener('timeupdate', cleanupBuffer);
   };
 
   const onMp4Ready = (info) => {
@@ -53,37 +60,24 @@ export default function MovieDetail() {
     const mime = `video/mp4; codecs="${codecs}"`;
     const sb = mediaSourceRef.current.addSourceBuffer(mime);
     sourceBufferRef.current = sb;
-    sourceBufferRef.current.mode = 'sequence';
-
-    const trackIDs = info.tracks.map(t => t.id);
-    mp4boxFile.current.setSegmentOptions(trackIDs, { nbSamples: 1000 });
-    mp4boxFile.current.initializeSegmentation();
-    mp4boxFile.current.onSegment = (_id, _user, segmentBuffer) => {
-      sb.appendBuffer(segmentBuffer);
-    };
+    // sourceBufferRef.current.mode = 'sequence';
 
     nextSegmentIndex.current = 0;
     sb.addEventListener('updateend', pumpNextSegment);
-    pumpNextSegment()
-  };
-  const cleanupBuffer = () => {
-    if(sourceBufferRef.current && !sourceBufferRef.current.updating) {
-        const currentTime = videoRef.current.currentTime;
-        const buffered = sourceBufferRef.current.buffered;
-        if(buffered.length) {
-            const start = buffered.start(0);
-            if(currentTime - start > 30) {
-                sourceBufferRef.current.remove(start, currentTime - 30);
-            }
-        }
-    }
+    pumpNextSegment();
   };
   const pumpNextSegment = async () => {
-    const i = nextSegmentIndex.current++;
+    const buffered = sourceBufferRef.current.buffered;
+    let totalBuffered = 0;
+    for (let i = 0; i < buffered.length; i++) {
+        totalBuffered += buffered.end(i) - buffered.start(i);
+    }
+    if(totalBuffered > 120) return;
+    const currIndex = Math.floor(videoRef.current.currentTime / segmentSize);
+    nextSegmentIndex.current = currIndex > nextSegmentIndex.current + 11? currIndex - 10 : nextSegmentIndex.current;
     try {
-
-      const buf = await fetchSegment(i);
-      // sourceBufferRef.current.timestampOffset + 30 * (i);
+      const buf = await fetchSegment(nextSegmentIndex.current);
+      sourceBufferRef.current.timestampOffset = nextSegmentIndex.current++ * segmentSize;
       sourceBufferRef.current.appendBuffer(buf);
     } catch(e) {
       console.log(e)

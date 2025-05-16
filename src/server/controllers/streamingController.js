@@ -106,30 +106,39 @@ async function stream(req, reply) {
             return reply.status(503).header('Retry-After', 10).send({ error: "Error accessing file stats." });
         }
         
-        const segmentDuration = 30;
+        const segmentDuration = 5;
         const startTime = segmentIndex * segmentDuration;
         if (!movie.isDownloaded) {
             if(activeDownloads[id].timeout)
                 clearTimeout(activeDownloads[id].timeout);
             const downloadedBytes = await activeDownloads[id].client.fileSize();
-            // console.log(startTime, downloadedBytes);
             if ((startTime + segmentDuration) * 500_000 >= downloadedBytes) {
                 return reply.status(503).header('Retry-After', 15).send({ error: "Download in progress, requested segment not yet available." });
             }
         }
         try {
+            // const command = ffmpeg(filePath)
+            // .outputOptions([
+            // `-ss ${startTime}`,
+            //   `-t ${segmentDuration}`,
+            //   '-c:v libx264',
+            //   '-c:a aac',
+            //   '-movflags +frag_keyframe+empty_moov+default_base_moof',
+            //   '-f mp4',
+            //   '-r 24'
+            // ])
             const command = ffmpeg(filePath)
-            .inputOptions([`-ss ${startTime}`])
+            .inputOptions([
+              `-ss ${startTime}`,
+            ])
             .outputOptions([
-              '-t 30',
-              '-c:v copy',
+              `-t ${segmentDuration}`,
+              '-c:v libx264',
               '-c:a aac',
               '-movflags +frag_keyframe+empty_moov+default_base_moof',
               '-f mp4',
-              '-r 24'
+              '-r 24',
             ])
-            .on('start', (cmd) => console.log('[FFmpeg] Started:', cmd))
-            .on('stderr', (stderrLine) => console.log('[FFmpeg] STDERR:', stderrLine))
             .on('error', (err) => console.error('[FFmpeg] ERROR:', err.message))
             .on('end', () => console.log('[FFmpeg] Finished successfully'))
             reply.header('Content-Type', 'video/mp4');
