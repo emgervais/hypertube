@@ -75,9 +75,6 @@ async function stream(req, reply) {
         const { id, segment, init } = req.query;
 
         const segmentIndex = parseInt(segment, 10);
-        if (isNaN(segmentIndex) || segmentIndex < 0) {
-            return reply.status(400).send({ error: "Invalid 'segment' parameter." });
-        }
 
         const collection = this.mongo.db.collection('movies');
         const movie = await collection.findOne({ filmId: id }) || await movieCreation(id, collection);
@@ -117,30 +114,38 @@ async function stream(req, reply) {
             }
         }
         try {
-            // const command = ffmpeg(filePath)
-            // .outputOptions([
-            // `-ss ${startTime}`,
-            //   `-t ${segmentDuration}`,
-            //   '-c:v libx264',
-            //   '-c:a aac',
-            //   '-movflags +frag_keyframe+empty_moov+default_base_moof',
-            //   '-f mp4',
-            //   '-r 24'
-            // ])
-            const command = ffmpeg(filePath)
-            .inputOptions([
-              `-ss ${startTime}`,
-            ])
-            .outputOptions([
-              `-t ${segmentDuration}`,
-              '-c:v libx264',
-              '-c:a aac',
-              '-movflags +frag_keyframe+empty_moov+default_base_moof',
-              '-f mp4',
-              '-r 24',
-            ])
-            .on('error', (err) => console.error('[FFmpeg] ERROR:', err.message))
-            .on('end', () => console.log('[FFmpeg] Finished successfully'))
+            let command;
+            if(segmentIndex === -1) {
+                command = ffmpeg(filePath)
+                .inputOptions([
+                    `-ss 0`,
+                ])
+                .outputOptions([
+                  `-t 1`,
+                  '-c:v libx264',
+                  '-c:a aac',
+                  '-movflags +frag_keyframe+empty_moov+default_base_moof',
+                  '-f mp4',
+                ])
+            }
+            else {
+                command = ffmpeg(filePath)
+                .inputOptions([
+                    `-ss ${startTime}`,
+                ])
+                .outputOptions([
+                    `-t ${segmentDuration}`,
+                    '-c:v libx264',
+                    '-preset veryfast',
+                    '-c:a aac',
+                    '-movflags frag_keyframe+empty_moov+default_base_moof',
+                    '-force_key_frames', `expr:gte(t,n_forced*${segmentDuration})`,
+                    '-f mp4',
+                    '-r 24',
+                ])
+            }
+            command.on('error', (err) => console.error('[FFmpeg] ERROR:', err.message))
+            command.on('end', () => console.log('[FFmpeg] Finished successfully'))
             reply.header('Content-Type', 'video/mp4');
             reply.status(200);
             return reply.send(command.pipe());

@@ -32,7 +32,7 @@ export default function MovieDetail() {
     const mediaSource = new MediaSource();
     mediaSourceRef.current = mediaSource;
     videoRef.current.src = URL.createObjectURL(mediaSource);
-    videoRef.current.addEventListener('seeking', (event) => {
+    videoRef.current.addEventListener('seeking', (event) => { //clean leftover ranges
       nextSegmentIndex.current = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
       console.log('new segment: ', nextSegmentIndex.current)
       pumpNextSegment();
@@ -41,13 +41,21 @@ export default function MovieDetail() {
     mediaSource.addEventListener('sourceopen', async () => {
       const res = await fetch(`http://127.0.0.1:8080/stream/manifest?id=${location.state.movie.id}`);
       const manifest = await res.json();
-      const initBuf = await fetchSegment(0);
+      const initBuf = await fetchSegment(-1);
       mediaSourceRef.current.duration = manifest.length;
-      initBuf.fileStart = 0;
-      mp4boxFile.current.onReady = onMp4Ready;
-      mp4boxFile.current.appendBuffer(initBuf);
+      // initBuf.fileStart = 0;
+      const mime = `video/mp4; codecs="avc1.64001e, mp4a.40.2"`;
+      const sb = mediaSourceRef.current.addSourceBuffer(mime);
+      sourceBufferRef.current = sb;
+      sourceBufferRef.current.mode = 'sequence'
+      // nextSegmentIndex.current = 0;
+      sourceBufferRef.current.addEventListener('updateend', pumpNextSegment);
+      sourceBufferRef.current.appendBuffer(initBuf);
+      // pumpNextSegment();
+      // mp4boxFile.current.onReady = onMp4Ready;
+      // mp4boxFile.current.appendBuffer(initBuf);
     });
-    //clean
+    //clean only for when playback goes normally
     setInterval(() => {
       for(let i = 0; i < sourceBufferRef.current.buffered.length; i++) {
         const start = sourceBufferRef.current.buffered.start(i);
@@ -64,7 +72,7 @@ export default function MovieDetail() {
         console.log(`playback: ${playback} clean ${start}-${end}`);
         sourceBufferRef.current.remove(start, end);
       }
-    }, 5000);
+    }, 2000);
  };
 
   const onMp4Ready = (info) => {
@@ -73,12 +81,12 @@ export default function MovieDetail() {
     const videoTrack = info.tracks.find(t => t.video);
     const audioTrack = info.tracks.find(t => t.audio);
     const codecs = [videoTrack.codec, audioTrack?.codec].filter(Boolean).join(', ');
-    const mime = `video/mp4; codecs="${codecs}"`;
+    const mime = `video/mp4; codecs="avc1.64001e, mp4a.40.2"`;
     const sb = mediaSourceRef.current.addSourceBuffer(mime);
     sourceBufferRef.current = sb;
-
+    // sourceBufferRef.current.mode = 'segments'
     nextSegmentIndex.current = 0;
-    sb.addEventListener('updateend', pumpNextSegment);
+    sourceBufferRef.current.addEventListener('updateend', pumpNextSegment);
     pumpNextSegment();
   };
   const pumpNextSegment = async () => {
@@ -96,12 +104,28 @@ export default function MovieDetail() {
         pumpingFlag.current = false;
         return;
       }
-      sourceBufferRef.current.timestampOffset = nextSegmentIndex.current++ * segmentSize;
+      let offset = 0;
+
+      // if (sourceBufferRef.current.buffered.length > 0) {
+      //   const lastIndex = sourceBufferRef.current.buffered.length - 1;
+      //   offset = sourceBufferRef.current.buffered.end(lastIndex);
+      // } else {
+      //   offset = videoRef.current.currentTime;
+      // }
+      for (let i = 0; i < sourceBufferRef.current.buffered.length; i++) {
+        const start = sourceBufferRef.current.buffered.start(i);
+        const end = sourceBufferRef.current.buffered.end(i);
+        console.log(`Buffered range ${i}: ${start.toFixed(2)} - ${end.toFixed(2)}`);
+      }
+      // sourceBufferRef.current.timestampOffset = offset;
       sourceBufferRef.current.appendBuffer(buf);
+      nextSegmentIndex.current++;
       pumpingFlag.current = false;
     } catch(e) {
-      console.log(e)
+      console.log(e);
       mediaSourceRef.current.endOfStream();
+    }finally {
+      pumpingFlag.current = false;
     }
   };
 
