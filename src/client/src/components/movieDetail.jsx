@@ -32,7 +32,14 @@ export default function MovieDetail() {
     const mediaSource = new MediaSource();
     mediaSourceRef.current = mediaSource;
     videoRef.current.src = URL.createObjectURL(mediaSource);
-    videoRef.current.addEventListener('seeking', (event) => { //clean leftover ranges
+    videoRef.current.addEventListener('seeking', (event) => {
+      const currTime =  Math.floor(videoRef.current.currentTime);
+      const buffers = sourceBufferRef.current.buffered;
+      for(let i = 0; i < buffers.length; i++) {
+        if(currTime < buffers.start(i) || currTime > buffers.end(i))
+          if(!sourceBufferRef.current.updating)
+            sourceBufferRef.current.remove(buffers.start(i), buffers.end(i));
+      }
       nextSegmentIndex.current = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
       console.log('new segment: ', nextSegmentIndex.current)
       pumpNextSegment();
@@ -47,7 +54,7 @@ export default function MovieDetail() {
       const mime = `video/mp4; codecs="avc1.64001e, mp4a.40.2"`;
       const sb = mediaSourceRef.current.addSourceBuffer(mime);
       sourceBufferRef.current = sb;
-      sourceBufferRef.current.mode = 'sequence'
+      // sourceBufferRef.current.mode = 'sequence'
       // nextSegmentIndex.current = 0;
       sourceBufferRef.current.addEventListener('updateend', pumpNextSegment);
       sourceBufferRef.current.appendBuffer(initBuf);
@@ -60,35 +67,26 @@ export default function MovieDetail() {
       for(let i = 0; i < sourceBufferRef.current.buffered.length; i++) {
         const start = sourceBufferRef.current.buffered.start(i);
         const playback = Math.floor(videoRef.current.currentTime);
-        let end = 0;
-        if(start > playback + 50) {
-          end = sourceBufferRef.current.buffered.end(i);
-        } else if (start < playback - 10) {
-          end = playback - 10;
-        } 
-        else
-          continue;
-        if(sourceBufferRef.current.updating || start >= end || end - start < 10) return;
-        console.log(`playback: ${playback} clean ${start}-${end}`);
-        sourceBufferRef.current.remove(start, end);
+        if(!sourceBufferRef.current.updating && start < playback - 10)
+          sourceBufferRef.current.remove(start, playback - 10);
       }
     }, 2000);
  };
 
-  const onMp4Ready = (info) => {
-    mp4boxFile.current.onReady = null;
+  // const onMp4Ready = (info) => {
+  //   mp4boxFile.current.onReady = null;
 
-    const videoTrack = info.tracks.find(t => t.video);
-    const audioTrack = info.tracks.find(t => t.audio);
-    const codecs = [videoTrack.codec, audioTrack?.codec].filter(Boolean).join(', ');
-    const mime = `video/mp4; codecs="avc1.64001e, mp4a.40.2"`;
-    const sb = mediaSourceRef.current.addSourceBuffer(mime);
-    sourceBufferRef.current = sb;
-    // sourceBufferRef.current.mode = 'segments'
-    nextSegmentIndex.current = 0;
-    sourceBufferRef.current.addEventListener('updateend', pumpNextSegment);
-    pumpNextSegment();
-  };
+  //   const videoTrack = info.tracks.find(t => t.video);
+  //   const audioTrack = info.tracks.find(t => t.audio);
+  //   const codecs = [videoTrack.codec, audioTrack?.codec].filter(Boolean).join(', ');
+  //   const mime = `video/mp4; codecs="avc1.64001e, mp4a.40.2"`;
+  //   const sb = mediaSourceRef.current.addSourceBuffer(mime);
+  //   sourceBufferRef.current = sb;
+  //   // sourceBufferRef.current.mode = 'segments'
+  //   nextSegmentIndex.current = 0;
+  //   sourceBufferRef.current.addEventListener('updateend', pumpNextSegment);
+  //   pumpNextSegment();
+  // };
   const pumpNextSegment = async () => {
     if(pumpingFlag.current) return;
     pumpingFlag.current = true;
@@ -104,7 +102,7 @@ export default function MovieDetail() {
         pumpingFlag.current = false;
         return;
       }
-      let offset = 0;
+      // let offset = 0;
 
       // if (sourceBufferRef.current.buffered.length > 0) {
       //   const lastIndex = sourceBufferRef.current.buffered.length - 1;

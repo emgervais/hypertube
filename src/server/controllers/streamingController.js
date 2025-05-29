@@ -70,6 +70,86 @@ async function manifest(req, reply) {
     }
     
 }
+function adjustSegmentTimestamps(buffer) {
+    // Clear first entry in edit list (for Firefox)
+    const moovOffset = seekBoxStart(buffer, 0, buffer.length, 'moov');
+    if (moovOffset === -1) throw new Error('Cannot find moov box');
+
+    const moovSize = buffer.readUInt32BE(moovOffset);
+    const trakOffset = seekBoxStart(buffer, moovOffset + 8, moovSize - 8, 'trak');
+    if (trakOffset === -1) throw new Error('Cannot find trak box');
+
+    const trakSize = buffer.readUInt32BE(trakOffset);
+    const edtsOffset = seekBoxStart(buffer, trakOffset + 8, trakSize - 8, 'edts');
+    if (edtsOffset === -1) throw new Error('Cannot find edts box');
+
+    const edtsSize = buffer.readUInt32BE(edtsOffset);
+    const elstOffset = seekBoxStart(buffer, edtsOffset + 8, edtsSize - 8, 'elst');
+    if (elstOffset === -1) throw new Error('Cannot find elst box');
+
+    const numEntries = buffer.readUInt32BE(elstOffset + 12);
+    console.log('Elst entries', numEntries);
+    if (numEntries === 2) {
+        console.log('Zeroing first elst duration', buffer.readUInt32BE(elstOffset + 16));
+        buffer.writeUInt32BE(0, elstOffset + 16);
+    }
+
+    // Get earliest_presentation_time from sidx
+    let sidxOffset = seekBoxStart(buffer, 0, buffer.length, 'sidx');
+    if (sidxOffset === -1) throw new Error('Cannot find sidx box');
+    sidxOffset += 8;
+
+    const sidxVersion = buffer.readUInt8(sidxOffset);
+    let earliest_presentation_time;
+    if (sidxVersion) {
+        earliest_presentation_time = Number(buffer.readBigUInt64BE(sidxOffset + 12));
+    } else {
+        earliest_presentation_time = buffer.readUInt32BE(sidxOffset + 12);
+    }
+
+    console.log('Earliest presentation time:', earliest_presentation_time);
+
+    // Iterate over moofs and adjust tfdt
+    let moofOffset = 0;
+    while (moofOffset < buffer.length) {
+        moofOffset = seekBoxStart(buffer, moofOffset, buffer.length - moofOffset, 'moof');
+        if (moofOffset === -1) break;
+
+        const moofSize = buffer.readUInt32BE(moofOffset);
+        console.log('Found moof at', moofOffset);
+
+        const trafOffset = seekBoxStart(buffer, moofOffset + 8, moofSize - 8, 'traf');
+        if (trafOffset === -1) throw new Error('Traf not found');
+        const trafSize = buffer.readUInt32BE(trafOffset);
+
+        const tfdtOffset = seekBoxStart(buffer, trafOffset + 8, trafSize - 8, 'tfdt');
+        if (tfdtOffset === -1) throw new Error('Tfdt not found');
+
+        const tfdtVersion = buffer.readUInt8(tfdtOffset + 8);
+        if (tfdtVersion) {
+            const baseTime = buffer.readBigUInt64BE(tfdtOffset + 12);
+            buffer.writeBigUInt64BE(baseTime + BigInt(earliest_presentation_time), tfdtOffset + 12);
+        } else {
+            const baseTime = buffer.readUInt32BE(tfdtOffset + 12);
+            buffer.writeUInt32BE(baseTime + earliest_presentation_time, tfdtOffset + 12);
+        }
+
+        moofOffset += moofSize;
+    }
+
+    return buffer;
+}
+function seekBoxStart(buffer, start, size, box) {
+    let offset = start;
+    while (offset - start < size) {
+        if (offset + 8 > buffer.length) return -1;
+        const size_ = buffer.readUInt32BE(offset);
+        const type_ = buffer.toString('ascii', offset + 4, offset + 8);
+        if (type_ === box) return offset;
+        offset += size_;
+    }
+    return -1;
+}
 async function stream(req, reply) {
     try {
         const { id, segment, init } = req.query;
@@ -128,20 +208,23 @@ async function stream(req, reply) {
                   '-f mp4',
                 ])
             }
-            else {
+            else {//When doing stream copy or when -noaccurate_seek is used, it will be preserved.
                 command = ffmpeg(filePath)
                 .inputOptions([
                     `-ss ${startTime}`,
                 ])
+                // .videoFilter(`setpts=PTS-STARTPTS+${startTime}`)
+                // .audioFilter(`asetpts=PTS-STARTPTS+${startTime}`)
                 .outputOptions([
                     `-t ${segmentDuration}`,
                     '-c:v libx264',
-                    '-preset veryfast',
+                    // '-preset veryfast',
                     '-c:a aac',
-                    '-movflags frag_keyframe+empty_moov+default_base_moof',
-                    '-force_key_frames', `expr:gte(t,n_forced*${segmentDuration})`,
+                    // `-output_ts_offset ${startTime}`,
+                    '-movflags frag_keyframe+separate_moof+empty_moov+default_base_moof+faststart',
+                    // '-force_key_frames', `expr:gte(t,n_forced*${segmentDuration})`,
                     '-f mp4',
-                    '-r 24',
+                    // '-r 24',
                 ])
             }
             command.on('error', (err) => console.error('[FFmpeg] ERROR:', err.message))
