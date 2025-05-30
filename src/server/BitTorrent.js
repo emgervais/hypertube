@@ -133,7 +133,6 @@ export default class BitTorrentClient {
     this.requestedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(i)).fill(false));
   }
   async getPeers(id) {
-    // console.log(JSON.stringify(this.requestedPieces));
     const res = await fetch(this.torrentUrl);
     this.torrent = bencode.decode(Buffer.from(await res.arrayBuffer()));
     // this.torrent = bencode.decode(Buffer.from(fs.readFileSync('./bigBunny.torrent')));
@@ -150,8 +149,6 @@ export default class BitTorrentClient {
     this.fileFd = fs.openSync(filePath, 'w+');
     this.fileLength = this.torrent.info.files ? this.findOffsetAndTotal(name): this.torrent.info.length;
     this.totalPieces = Math.ceil(this.fileLength / this.torrent.info['piece length']);
-    // this.offsetBegin
-    // this.lastPieceSize = totalLength / plen;
     if (this.receivedPieces === null) {
       this.initPiecesMap()
     }
@@ -560,13 +557,13 @@ export default class BitTorrentClient {
   }
 }
 
-(async function(){
-  const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', null, null);
-  const file = await bitInstance.getPeers('bunny');
+// (async function(){
+//   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', null, null);
+//   const file = await bitInstance.getPeers('bunny');
   // await new Promise(resolve => setTimeout(resolve, 10000));
   // const pieces = await bitInstance.stop();
   // const bitInstance2 = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', pieces, file);
   // bitInstance2.getPeers('tt5463162');
   // await new Promise(resolve => setTimeout(resolve, 20000));
   // bitInstance2.stop();
-})()     
+// })()  
