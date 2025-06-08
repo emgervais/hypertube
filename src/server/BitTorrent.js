@@ -145,7 +145,12 @@ export default class BitTorrentClient {
         name = this.torrent.info['name'];
     }
     const extension = Buffer.from(name).toString("utf-8").split('.').pop();
-    const filePath = path.join('src', 'server', 'movies', `${id}.${extension}`);
+    const folderPath =  path.join('src', 'server', 'movies', `${id}`);
+    const filePath = path.join('src', 'server', 'movies', `${id}`, `${id}.${extension}`);
+    if (!fs.existsSync(folderPath))
+      fs.mkdirSync(folderPath, { recursive: true });
+    if (!fs.existsSync(filePath))
+      fs.closeSync(fs.openSync(filePath, 'w'));
     this.fileFd = fs.openSync(filePath, 'w+');
     this.fileLength = this.torrent.info.files ? this.findOffsetAndTotal(name): this.torrent.info.length;
     this.totalPieces = Math.ceil(this.fileLength / this.torrent.info['piece length']);
@@ -469,14 +474,13 @@ export default class BitTorrentClient {
       const offset = pieceIndex * this.torrent.info['piece length'] - (pieceIndex === 0 ? 0 : (this.offsetBegin + this.offsetBlock * 16 * 1024));
       const buffHash = crypto.createHash('sha1').update(fullPiece).digest();
       const targetHash = this.torrent['info'].pieces.subarray(pieceIndex * 20, (pieceIndex + 1) * 20);
+      console.log(`Received full piece ${pieceIndex} from ${socketId}`)
       if(pieceIndex && pieceIndex !== this.totalPieces - 1 && buffHash.compare(targetHash) !== 0) {
-        console.log(`incorrect piece ${pieceIndex}`);
+        console.log(`incorrect piece ${pieceIndex} # ${blockIndex}`);
         this.requestedPieces[pieceIndex].fill(false);
         this.receivedPieces[pieceIndex].fill(false);
       } else {
-        console.log('in');
         fs.write(this.fileFd, fullPiece, 0, fullPiece.length, offset, () => {});
-        console.log('out');
         this.receivedPieces[pieceIndex].fill(true);
         console.log(`Received full piece ${pieceIndex} from ${socketId}`);
       }
@@ -558,8 +562,10 @@ export default class BitTorrentClient {
 }
 
 // (async function(){
+//   console.log('i')
 //   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', null, null);
-//   const file = await bitInstance.getPeers('bunny');
+//   const file = await bitInstance.getPeers('partialBunny');
+// })()
   // await new Promise(resolve => setTimeout(resolve, 10000));
   // const pieces = await bitInstance.stop();
   // const bitInstance2 = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', pieces, file);

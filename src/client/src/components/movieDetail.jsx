@@ -10,15 +10,27 @@ export default function MovieDetail() {
   const mp4boxFile = useRef(MP4Box.createFile());
   const nextSegmentIndex = useRef(0);
   const pumpingFlag = useRef(false);
-  const segmentSize = 5;
+  const segmentSize = 4;
 
   const fetchSegment = async (index) => {
     let retries = 0;
     while (retries < 10) {
       try {
+        if(index === -1) {
+          const res = await fetch(`http://127.0.0.1:8080/stream/manifest?id=${location.state.movie.id}`);
+          if(!res.ok) {
+            await fetch(`http://127.0.0.1:8080/stream?id=${location.state.movie.id}&segment=${index}`);
+            throw new Error(`HTTP ${res.status}`);
+          }
+          else {
+            const manifest = await res.json();
+            mediaSourceRef.current.duration = manifest.length;
+          }
+        }
         const res = await fetch(`http://127.0.0.1:8080/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return await res.arrayBuffer();
+        const buffer = new Uint8Array(await res.arrayBuffer());
+        return buffer
       } catch (err) {
         retries++;
         console.warn(`Retrying segment ${index} (attempt ${retries})`);
@@ -40,18 +52,15 @@ export default function MovieDetail() {
           if(!sourceBufferRef.current.updating)
             sourceBufferRef.current.remove(buffers.start(i), buffers.end(i));
       }
-      nextSegmentIndex.current = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
+      nextSegmentIndex.current = Math.floor(videoRef.current.currentTime / segmentSize);
       console.log('new segment: ', nextSegmentIndex.current)
       pumpNextSegment();
     });
     //init
     mediaSource.addEventListener('sourceopen', async () => {
-      const res = await fetch(`http://127.0.0.1:8080/stream/manifest?id=${location.state.movie.id}`);
-      const manifest = await res.json();
       const initBuf = await fetchSegment(-1);
-      mediaSourceRef.current.duration = manifest.length;
       // initBuf.fileStart = 0;
-      const mime = `video/mp4; codecs="avc1.64001e, mp4a.40.2"`;
+      const mime = `video/mp4; codecs="avc1.64001F, mp4a.40.2"`;
       const sb = mediaSourceRef.current.addSourceBuffer(mime);
       sourceBufferRef.current = sb;
       // sourceBufferRef.current.mode = 'sequence'
@@ -90,7 +99,7 @@ export default function MovieDetail() {
   const pumpNextSegment = async () => {
     if(pumpingFlag.current) return;
     pumpingFlag.current = true;
-    const currentPiece = Math.floor(videoRef.current.currentTime / segmentSize);
+    const currentPiece = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
     if(nextSegmentIndex.current - currentPiece >= 10) {
       console.log(`playback ${videoRef.current.currentTime} `+'total buffeer:', nextSegmentIndex.current - currentPiece);
       pumpingFlag.current = false;
@@ -98,30 +107,23 @@ export default function MovieDetail() {
     } 
     try {
       const buf = await fetchSegment(nextSegmentIndex.current);
-      if(sourceBufferRef.current.updating) {
+      if(sourceBufferRef.current.updating || !sourceBufferRef.current) {
         pumpingFlag.current = false;
         return;
       }
-      // let offset = 0;
 
-      // if (sourceBufferRef.current.buffered.length > 0) {
-      //   const lastIndex = sourceBufferRef.current.buffered.length - 1;
-      //   offset = sourceBufferRef.current.buffered.end(lastIndex);
-      // } else {
-      //   offset = videoRef.current.currentTime;
-      // }
       for (let i = 0; i < sourceBufferRef.current.buffered.length; i++) {
         const start = sourceBufferRef.current.buffered.start(i);
         const end = sourceBufferRef.current.buffered.end(i);
         console.log(`Buffered range ${i}: ${start.toFixed(2)} - ${end.toFixed(2)}`);
       }
-      // sourceBufferRef.current.timestampOffset = offset;
+
       sourceBufferRef.current.appendBuffer(buf);
       nextSegmentIndex.current++;
       pumpingFlag.current = false;
     } catch(e) {
       console.log(e);
-      mediaSourceRef.current.endOfStream();
+      // mediaSourceRef.current.endOfStream();
     }finally {
       pumpingFlag.current = false;
     }
@@ -131,5 +133,5 @@ export default function MovieDetail() {
     initializeVideo();
   }, []);
 
-  return <video ref={videoRef} controls style={{ width: '100%' }} />;
+  return <video ref={videoRef} onError={console.log} controls style={{ width: '100%' }} />;
 }

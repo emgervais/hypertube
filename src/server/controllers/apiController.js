@@ -86,14 +86,14 @@ async function getMovieFilter(req, reply) {
         const clearList = fullList.filter((movie, index, self) => 
             index === self.findIndex(m => m.id === movie.id)
         );
-        if(req.query.page === 0) {
-            fullList.unshift({
+        if(req.query.page === 1) {
+            clearList.unshift({
                 id: 'bunny',
                 title: 'bunny',
                 year: '2017',
                 runtime: '10',
                 genres: 'animation',
-                image: '',
+                image: 'http://localhost:8080/images/bunny.jpg',
                 rating: '10',
                 torrents: 'https://archive.org/download/BigBuckBunny_124/BigBuckBunny_124_archive.torrent'
             });

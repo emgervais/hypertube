@@ -1,25 +1,18 @@
-frontend
----------------------
-    video
-    -------------------------
-    video player, summary, producer, actors, prodyear, length, rating, coverimage
-    comments
+video
+-------------------------
+video player, summary, producer, actors, prodyear, length, rating, coverimage
+comments
+
+comments
+get new oauth2 42 secret
+check if partial movie working with mediapipe
+check if download sync with movie streaming
+
+priorizing right piece according to playback (prob not?)
 
 
 
 
-
-
-backend
-------------------------
-    streaming
-    --------------------
-    resolutions
-    MediaStream API
-    if not downloaded launch torrent init stream asap and async
-    after download save on server for reusage. outdated 1 month
-    if english sub available download and available for user
-    if audio dont fit prefered and subtile in language autoamtic download
 
 security
 ------------------
