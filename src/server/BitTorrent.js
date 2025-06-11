@@ -133,6 +133,7 @@ export default class BitTorrentClient {
     this.requestedPieces = arr.map((_, i) => new Array(this.blocksPerPiece(i)).fill(false));
   }
   async getPeers(id) {
+    console.log('Starting download')
     const res = await fetch(this.torrentUrl);
     this.torrent = bencode.decode(Buffer.from(await res.arrayBuffer()));
     // this.torrent = bencode.decode(Buffer.from(fs.readFileSync('./bigBunny.torrent')));
@@ -230,7 +231,6 @@ export default class BitTorrentClient {
         const buf = Buffer.concat(chunks);
         const s = buf.toString('utf-8');
         const response = bencode.decode(buf);
-        console.log(response)
         const peers = this.parseCompactPeers(response.peers);
         peers.forEach(p => this.download(p));
         setTimeout(() => this.startRotation(), 3000);
@@ -250,12 +250,6 @@ export default class BitTorrentClient {
     return total;
   }
 
-  clearQueue(socketId) {
-    for(const block of this.peersList[socketId].queue) {
-      const blockIndex = block.begin / (1024 * 16)
-      this.requestedPieces[block.index][blockIndex] = false;
-    }
-  }
   async sendUnchokes(newPeersList) {
     for(const id of newPeersList) {
       if(this.selectedPeers.has(id))
@@ -378,6 +372,18 @@ export default class BitTorrentClient {
         console.log(e);
     }
   }
+  clearQueue(socketId) {
+    for(const block of this.peersList[socketId].queue) {
+      const pieceIndex = block.index - this.offsetPiece;
+      const offsettedBlockIndex = block.begin / (1024 * 16)
+      const blockIndex = offsettedBlockIndex - (pieceIndex === 0 ? this.offsetBlock : 0);
+      console.log(`cleared piece ${pieceIndex} block ${blockIndex}`)
+      if(this.requestedPieces[pieceIndex][blockIndex] && typeof(this.requestedPieces[pieceIndex][blockIndex]) !== Boolean){
+        clearTimeout(this.requestedPieces[pieceIndex][blockIndex]);
+      }
+      this.requestedPieces[pieceIndex][blockIndex] = false;
+    }
+  }
   getNextPiece(socketId) {
     const peer = this.peersList[socketId];
     let startPiece = Math.floor(this.currentPlayBack / this.torrent.info['piece length']);
@@ -387,7 +393,13 @@ export default class BitTorrentClient {
         const offsettedBlockIndex = blockIndex + (pieceIndex === 0 ? this.offsetBlock : 0);
         const offsettedPieceIndex = pieceIndex + this.offsetPiece;
         if (!this.requestedPieces[pieceIndex][blockIndex]) {
-          this.requestedPieces[pieceIndex][blockIndex] = true;
+          if (this.requestedPieces[pieceIndex][blockIndex] && typeof this.requestedPieces[pieceIndex][blockIndex] !== 'boolean') {
+            clearTimeout(this.requestedPieces[pieceIndex][blockIndex]);
+          }
+          this.requestedPieces[pieceIndex][blockIndex] = setTimeout(() => {
+            console.log(`timeout piece ${pieceIndex} block ${blockIndex}`);
+            this.requestedPieces[pieceIndex][blockIndex] = false;
+          }, 10000);
           const isLast = pieceIndex === this.totalPieces - 1 && blockIndex === nBlocks - 1;
           const block = { index: offsettedPieceIndex, begin: offsettedBlockIndex * 16*1024, length: this.blockLen(isLast)}
           peer.queue.push(block);
@@ -467,6 +479,10 @@ export default class BitTorrentClient {
     }
     if(pieceIndex === 0)
       blockIndex -= this.offsetBlock;
+    if(this.requestedPieces[pieceIndex][blockIndex] && typeof(this.requestedPieces[pieceIndex][blockIndex]) !== Boolean){
+      clearTimeout(this.requestedPieces[pieceIndex][blockIndex]);
+    }
+    this.requestedPieces[pieceIndex][blockIndex] = true;
     if(this.receivedPieces[pieceIndex][blockIndex]) return;
     this.receivedPieces[pieceIndex][blockIndex] = block.block;
     if(this.receivedPieces[pieceIndex].every(i=>i)) {
@@ -474,15 +490,15 @@ export default class BitTorrentClient {
       const offset = pieceIndex * this.torrent.info['piece length'] - (pieceIndex === 0 ? 0 : (this.offsetBegin + this.offsetBlock * 16 * 1024));
       const buffHash = crypto.createHash('sha1').update(fullPiece).digest();
       const targetHash = this.torrent['info'].pieces.subarray(pieceIndex * 20, (pieceIndex + 1) * 20);
-      console.log(`Received full piece ${pieceIndex} from ${socketId}`)
       if(pieceIndex && pieceIndex !== this.totalPieces - 1 && buffHash.compare(targetHash) !== 0) {
         console.log(`incorrect piece ${pieceIndex} # ${blockIndex}`);
         this.requestedPieces[pieceIndex].fill(false);
         this.receivedPieces[pieceIndex].fill(false);
       } else {
+        // console.log(`Received full piece ${pieceIndex} from ${socketId}`);
+        console.log(`writing piece ${pieceIndex} at ${offset} with a length of ${fullPiece.length} next piece should start at ${offset + fullPiece.length}`)
         fs.write(this.fileFd, fullPiece, 0, fullPiece.length, offset, () => {});
         this.receivedPieces[pieceIndex].fill(true);
-        console.log(`Received full piece ${pieceIndex} from ${socketId}`);
       }
     }
     this.peersList[socketId].queue = this.peersList[socketId].queue.filter((b) => b.index !== block.index && block.begin !== b.begin);
@@ -562,9 +578,8 @@ export default class BitTorrentClient {
 }
 
 // (async function(){
-//   console.log('i')
 //   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', null, null);
-//   const file = await bitInstance.getPeers('partialBunny');
+//   const file = await bitInstance.getPeers('test');
 // })()
   // await new Promise(resolve => setTimeout(resolve, 10000));
   // const pieces = await bitInstance.stop();

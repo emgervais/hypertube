@@ -34,7 +34,7 @@ export default function MovieDetail() {
       } catch (err) {
         retries++;
         console.warn(`Retrying segment ${index} (attempt ${retries})`);
-        await new Promise(r => setTimeout(r, 2000));
+        await new Promise(r => setTimeout(r, 10000));
       }
     }
     throw new Error(`Failed to fetch segment ${index}`);

@@ -1,4 +1,5 @@
-const arr = new Array(6);
-arr[0] = true
-arr[1] = 'udhgsdgh'
-console.log(arr)
+import path from 'path'
+
+const file = path.join('src', 'server', 'movie', 'tt132');
+const folderPath = file.split('/').slice(0, -1).join('/');
+console.log(folderPath)

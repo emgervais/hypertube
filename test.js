@@ -1,8 +1,8 @@
 // removeFirstByte.mjs
 import { readFile, writeFile } from 'fs/promises';
 
-const inputPath = 'src/server/movies/bunny.avi';
-const inputPath2 = 'src/server/movies/real_bunny.avi';
+const inputPath = 'src/server/movies/test/test.mp4';
+const inputPath2 = 'src/server/movies/tt1211837/real.mp4';
 
 try {
   const buffer = await readFile(inputPath);
