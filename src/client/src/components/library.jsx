@@ -99,7 +99,7 @@ export default function Library() {
             </header>
             <main className='grid grid-cols-6 gap-5 w-9/10 mt-5'>
                 {movieList.map((movie) => {
-                    return (<MovieCard movie={movie} isWatched={watched.includes(movie.id)}/>)
+                    return (<MovieCard key={movie.id} movie={movie} isWatched={watched.includes(movie.id)}/>)
                 })}
             </main>
         </div>

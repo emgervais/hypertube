@@ -578,8 +578,8 @@ export default class BitTorrentClient {
 }
 
 // (async function(){
-//   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/7BA0C6BD9B4E52EA2AD137D02394DE7D83B98091', null, null);
-//   const file = await bitInstance.getPeers('test');
+//   const bitInstance = new BitTorrentClient('https://yts.mx/torrent/download/2AA285C56E5B7AA25D78D1D8965360D05A189E90', null, null);
+//   const file = await bitInstance.getPeers('tt0017928');
 // })()
   // await new Promise(resolve => setTimeout(resolve, 10000));
   // const pieces = await bitInstance.stop();
