@@ -38,7 +38,7 @@ async function movieCreation(id, collection) {
 
 async function startDownload(movie, collection) {
     const bitInstance = new BitTorrentClient(movie.bitBody.torrentUrl, movie.bitBody.blocks, movie.bitBody.file);
-    activeDownloads[movie.filmId] = {client: bitInstance, timeout: null}
+    activeDownloads[movie.filmId] = {client: bitInstance, timeout: null, isFFmpeg: false}
     const filePath = await bitInstance.getPeers(movie.filmId);
     if (movie.bitBody.file === null) {
         await collection.findOneAndUpdate({filmId: movie.filmId}, {$set: {"bitBody.file": filePath}});
@@ -83,47 +83,54 @@ async function manifest(req, reply) {
     
 }
 
-function isSegmentValidWithFFprobe(initPath, segmentPath=null) {
+async function isSegmentValid(initPath, segmentPath=null) {
     const tempFile = initPath.split('/').splice(0, -2).join('/') + `${Math.random().toString(36).substring(2, 9)}.check.mp4`;
     try {
-        const init = fs.readFileSync(initPath);
+        const init = await fs.promises.writeFile(initPath);
         if(segmentPath) {
-            const segment = fs.readFileSync(segmentPath);
-            fs.writeFileSync(tempFile, Buffer.concat([init, segment]));
+            const segment = await fs.promises.readFile(segmentPath);
+            await fs.promises.writeFile(tempFile, Buffer.concat([init, segment]));
         } else {
-            fs.writeFileSync(tempFile, init);
+            await fs.promises.writeFile(tempFile, init);
         }
-        const result = spawnSync('ffprobe', [
-            '-v', 'error',
-            '-show_entries', 'format=format_name',
-            '-of', 'default=noprint_wrappers=1:nokey=1',
-            tempFile
-        ]);
-        fs.unlinkSync(tempFile);
-        console.log(`Is segment valid: ${result.status === 0}`);
+        const result = await new Promise((resolve, reject) => {
+        const ffprobe = spawn('ffprobe', [
+              '-v', 'error',
+              '-show_entries', 'format=format_name',
+              '-of', 'default=noprint_wrappers=1:nokey=1',
+              tempFile
+            ]);
+            ffprobe.on('close', (code) => resolve({ status: code }));
+            ffprobe.on('error', (err) => reject(err));
+        });
+        await fs.promises.unlink(tempFile);
+        // console.log(`Is segment valid: ${result.status === 0}`);
         return result.status === 0;
     } catch(e) {
-        // fs.unlinkSync(tempFile);
+        if(await fileExist(tempFile))
+            await fs.promises.unlink(tempFile);
         console.log(`Error in validation: ${e}`)
         return false;
     }
 }
-
+async function fileExist(path) {
+    return await fs.promises.access(path).then(() => true).catch(() => false);
+}
 async function getSegment(segmentIndex, folderPath, isDownloaded) {
     try {
             const initPath = path.join(folderPath, 'segments', 'segment-init.mp4')
             const segmentPath = path.join(folderPath, 'segments', `segment-${segmentIndex === -1 ? 10 : segmentIndex + 1}.m4s`);
             if(segmentIndex === -1) {
-                if(!fs.existsSync(initPath) || (!isDownloaded && !fs.existsSync(segmentPath)) || !isSegmentValidWithFFprobe(initPath)) {
-                    console.log(`seg: ${fs.existsSync(initPath)}, next-seg: ${fs.existsSync(segmentPath)}, is-valid: ${isSegmentValidWithFFprobe(initPath)}`)
+                if(!await fileExist(initPath) || (!isDownloaded && !await fileExist(segmentPath)) || !await isSegmentValid(initPath)) {
+                    // console.log(`seg: ${fs.existsSync(initPath)}, next-seg: ${fs.existsSync(segmentPath)}, is-valid: ${await isSegmentValid(initPath)}`)
                     throw Error('Downloading');
                 }
                 return await readFile(initPath);
             }
             segmentIndex++;
             const nextSegmentPath = path.join(folderPath, 'segments', `segment-${segmentIndex + 1}.m4s`);
-            if(!fs.existsSync(segmentPath) || (!isDownloaded && !fs.existsSync(nextSegmentPath)) || !isSegmentValidWithFFprobe(initPath,segmentPath)) {
-                console.log(`seg: ${fs.existsSync(segmentPath)}, next-seg: ${fs.existsSync(nextSegmentPath)}, is-valid: ${isSegmentValidWithFFprobe(initPath,segmentPath)}`)
+            if(!await fileExist(segmentPath) || (!isDownloaded && !await fileExist(nextSegmentPath)) || !await isSegmentValid(initPath,segmentPath)) {
+                // console.log(`seg: ${fs.existsSync(segmentPath)}, next-seg: ${fs.existsSync(nextSegmentPath)}, is-valid: ${await isSegmentValid(initPath,segmentPath)}`)
                 throw Error('Downloading');
             }
             return await readFile(segmentPath);
@@ -132,7 +139,9 @@ async function getSegment(segmentIndex, folderPath, isDownloaded) {
             return null;
         }
 }
-async function mediaPipe(filePath, folderPath) {
+async function mediaPipe(filePath, folderPath, id) {
+    if(activeDownloads[id]?.isFFmpeg) return;
+    activeDownloads[id].isFFmpeg = true;
     // const isMP4 = filePath.split('.')[1] === 'mp4'
     // const tempFile = isMP4 ? filePath : path.join(folderPath, `${Math.random().toString(36).substring(2, 9)}.mp4`)
     const tempFile = path.join(folderPath, `${Math.random().toString(36).substring(2, 9)}.mp4`)
@@ -164,12 +173,13 @@ async function mediaPipe(filePath, folderPath) {
                 mp4box.on('close', code => code === 0 ? res() : rej(new Error('mp4box failed')));
                 });
             // if(!isMP4)
-            fs.unlinkSync(tempFile);
+            await fs.promises.unlink(tempFile);
         } catch(e) {
-            // if(e === 'mp4box failed')
-                // console.log(e);
-            // fs.unlinkSync(tempFile);
+            if(await fileExist(tempFile))
+                await fs.promises.unlink(tempFile);
             console.log(e);
+        } finally {
+            activeDownloads[id].isFFmpeg = false;
         }
 }
 async function stream(req, reply) {
@@ -192,7 +202,7 @@ async function stream(req, reply) {
         }
 
         const folderPath = movie.bitBody.file.split('/').slice(0, -1).join('/');
-        if (!fs.existsSync(folderPath) || !fs.existsSync(movie.bitBody.file)) {
+        if (!await fileExist(folderPath) || !await fileExist(movie.bitBody.file)) {
             console.log(`Movie Folder or file not created yet folder: ${folderPath} file: ${movie.bitBody.file}`);
             return reply.status(503).header('Retry-After', 30).send({ error: "File not yet created by download." });
         }
