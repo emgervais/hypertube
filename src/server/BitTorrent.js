@@ -22,9 +22,10 @@ export default class BitTorrentClient {
     this.offsetPiece = 0;
     this.offsetBegin = 0;
     this.offsetBlock = 0;
-    if (received !== null) {
+    if (received) {
+      console.log("in____________________________________________________")
       this.receivedPieces = received;
-      this.requestedPieces = received.map(piece => piece.map(block => block ? true : false));
+      this.requestedPieces = received.map(piece => piece.every(i=>i === true) ? new Array(piece.length).fill(true): new Array(piece.length).fill(false));
   } else {
       this.receivedPieces = null;
       this.requestedPieces = null;
@@ -402,6 +403,7 @@ export default class BitTorrentClient {
           }, 10000);
           const isLast = pieceIndex === this.totalPieces - 1 && blockIndex === nBlocks - 1;
           const block = { index: offsettedPieceIndex, begin: offsettedBlockIndex * 16*1024, length: this.blockLen(isLast)}
+          // console.log(`peer: ${socketId} Add piece ${pieceIndex} block ${blockIndex}`)
           peer.queue.push(block);
           return block;
         }
@@ -495,7 +497,6 @@ export default class BitTorrentClient {
         this.requestedPieces[pieceIndex].fill(false);
         this.receivedPieces[pieceIndex].fill(false);
       } else {
-        // console.log(`Received full piece ${pieceIndex} from ${socketId}`);
         console.log(`writing piece ${pieceIndex} at ${offset} with a length of ${fullPiece.length} next piece should start at ${offset + fullPiece.length}`)
         fs.write(this.fileFd, fullPiece, 0, fullPiece.length, offset, () => {});
         this.receivedPieces[pieceIndex].fill(true);

@@ -23,7 +23,7 @@ async function movieCreation(id, collection) {
         return (null);
     const torrentUrl = await chooseTorrent(movie[0].torrents);
     const insertRes = await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, bitBody: {
-        length: movie[0].runtime,
+        length: movie[0].runtime * 60,
         torrentUrl: torrentUrl,
         file: null,
         blocks: null,
@@ -45,34 +45,36 @@ async function startDownload(movie, collection) {
     }
 }
 
-async function stopDownload(req, reply) {
-    const collection = this.mongo.db.collection('movies');
-    for(const [id, downloadInfo] of Object.entries(activeDownloads)) {
-        if (downloadInfo) {
-            clearTimeout(downloadInfo.timeout);
-            try {
-                const blocks = await downloadInfo.client.stop();
-                await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": blocks}})
-                delete activeDownloads[id];
-            } catch (e) {
-                console.log(e);
-            }
-        }
+async function stopDownload(id, collection) {
+    // for(const [id, downloadInfo] of Object.entries(activeDownloads)) {
+    const downloadInfo = activeDownloads[id];
+    if (downloadInfo) {
+        clearTimeout(downloadInfo.timeout);
+     try {
+         let blocks = await downloadInfo.client.stop();
+         const isDone = blocks.every(i=>i.every(j=>j));
+         if(isDone)
+            blocks = null;
+         await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": blocks, "isDownloaded": isDone}})
+         delete activeDownloads[id];
+    } catch (e) {
+        console.log(e);
     }
-    return reply.status(200).send(activeDownloads);
+    }
+    // }
 }
 
 async function manifest(req, reply) {
     const {id} = req.query;
     try {
-        const collection = this.mongo.db.collection('movies');
-    //     await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, bitBody: {
-    //     length: 596,
-    //     torrentUrl: 'https://archive.org/download/BigBuckBunny_124/BigBuckBunny_124_archive.torrent',
-    //     file: null,
-    //     blocks: null,
+         const collection = this.mongo.db.collection('movies');
+        // await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, bitBody: {
+        // length: 596,
+        // torrentUrl: 'https://archive.org/download/BigBuckBunny_124/BigBuckBunny_124_archive.torrent',
+        // file: null,
+        // blocks: null,
     // }});
-        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.length": 115}});
+        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
         const movie = await collection.findOne({filmId: id});
         if(!movie)
             return reply.status(404).send()
@@ -84,9 +86,9 @@ async function manifest(req, reply) {
 }
 
 async function isSegmentValid(initPath, segmentPath=null) {
-    const tempFile = initPath.split('/').splice(0, -2).join('/') + `${Math.random().toString(36).substring(2, 9)}.check.mp4`;
+    const tempFile = initPath.split('/').slice(0, -2).join('/') + `/${Math.random().toString(36).substring(2, 9)}.check.mp4`;
     try {
-        const init = await fs.promises.writeFile(initPath);
+        const init = await fs.promises.readFile(initPath);
         if(segmentPath) {
             const segment = await fs.promises.readFile(segmentPath);
             await fs.promises.writeFile(tempFile, Buffer.concat([init, segment]));
@@ -128,8 +130,8 @@ async function getSegment(segmentIndex, folderPath, isDownloaded) {
                 return await readFile(initPath);
             }
             segmentIndex++;
-            const nextSegmentPath = path.join(folderPath, 'segments', `segment-${segmentIndex + 1}.m4s`);
-            if(!await fileExist(segmentPath) || (!isDownloaded && !await fileExist(nextSegmentPath)) || !await isSegmentValid(initPath,segmentPath)) {
+            // const nextSegmentPath = path.join(folderPath, 'segments', `segment-${segmentIndex + 1}.m4s`);
+            if(!await fileExist(segmentPath) || !await isSegmentValid(initPath,segmentPath)) {
                 // console.log(`seg: ${fs.existsSync(segmentPath)}, next-seg: ${fs.existsSync(nextSegmentPath)}, is-valid: ${await isSegmentValid(initPath,segmentPath)}`)
                 throw Error('Downloading');
             }
@@ -140,7 +142,7 @@ async function getSegment(segmentIndex, folderPath, isDownloaded) {
         }
 }
 async function mediaPipe(filePath, folderPath, id) {
-    if(activeDownloads[id]?.isFFmpeg) return;
+    if(!activeDownloads[id] || activeDownloads[id]?.isFFmpeg) return;
     activeDownloads[id].isFFmpeg = true;
     // const isMP4 = filePath.split('.')[1] === 'mp4'
     // const tempFile = isMP4 ? filePath : path.join(folderPath, `${Math.random().toString(36).substring(2, 9)}.mp4`)
@@ -179,6 +181,7 @@ async function mediaPipe(filePath, folderPath, id) {
                 await fs.promises.unlink(tempFile);
             console.log(e);
         } finally {
+            if(!activeDownloads[id]) return;
             activeDownloads[id].isFFmpeg = false;
         }
 }
@@ -198,6 +201,7 @@ async function stream(req, reply) {
         if (!activeDownloads[id] && !movie.isDownloaded) {
             await startDownload(movie, collection);
             console.log('Movie download started');
+
             return reply.status(503).header('Retry-After', 30).send();
         }
 
@@ -209,16 +213,24 @@ async function stream(req, reply) {
         if(!movie.isDownloaded && activeDownloads[id].timeout)
             clearTimeout(activeDownloads[id].timeout);
 
-        
+        if(activeDownloads[id]) {
+            const timeout = setTimeout(() => {
+                stopDownload(id, collection);
+                console.log('stopping download');
+            }, 30000)
+            activeDownloads[id].timeout = timeout
+        }
         let fragment = await getSegment(segmentIndex, folderPath, movie.isDownloaded);
         if(fragment === null) {
-            await mediaPipe(movie.bitBody.file, folderPath)
+            await mediaPipe(movie.bitBody.file, folderPath, id)
             fragment = await getSegment(segmentIndex, folderPath, movie.isDownloaded);
             if(fragment === null) {
                 console.log('Error Fragment can\'t be served yet');
                 return reply.status(503).header('Retry-After', 30).send();
             }
         }
+        if(segment * 4 >= movie.bitBody.length)
+            return reply.status(204).header('Content-Type', 'video/mp4').send(fragment)
         return reply.status(200).header('Content-Type', 'video/mp4').send(fragment)
     } catch (e) {
        console.log(e)
@@ -229,7 +241,7 @@ async function stream(req, reply) {
 async function getAllMovies(req, reply) {
     try {
         const collection = this.mongo.db.collection('movies');
-        const movies = await collection.find().toArray();//collection.findOne({filmId: 'bunny'})
+        const movies = await collection.find({}, { projection: { "bitBody.blocks": 0 } }).toArray();//collection.findOne({filmId: 'bunny'})
         reply.send(movies);
     } catch(e) {
         console.log(e);

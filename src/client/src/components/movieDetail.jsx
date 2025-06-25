@@ -10,6 +10,7 @@ export default function MovieDetail() {
   // const mp4boxFile = useRef(MP4Box.createFile());
   const nextSegmentIndex = useRef(0);
   const pumpingFlag = useRef(false);
+  const Done = useRef(false);
   const segmentSize = 4;
 
   const fetchSegment = async (index) => {
@@ -24,11 +25,13 @@ export default function MovieDetail() {
           }
           else {
             const manifest = await res.json();
-            mediaSourceRef.current.duration = manifest.length * 60;
+            mediaSourceRef.current.duration = manifest.length;
           }
         }
         const res = await fetch(`http://127.0.0.1:8080/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if(res.status === 204)
+          Done.current = true;
         const buffer = new Uint8Array(await res.arrayBuffer());
         return buffer
       } catch (err) {
@@ -80,7 +83,7 @@ export default function MovieDetail() {
  };
 
   const pumpNextSegment = async () => {
-    if(pumpingFlag.current) return;
+    if(Done.current || pumpingFlag.current) return;
     pumpingFlag.current = true;
     const currentPiece = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
     if(nextSegmentIndex.current - currentPiece >= 10) {
@@ -105,31 +108,32 @@ export default function MovieDetail() {
       nextSegmentIndex.current++;
       pumpingFlag.current = false;
     } catch(e) {
-      console.log(e);
       mediaSourceRef.current.endOfStream();
+      cleanup();
     }finally {
       pumpingFlag.current = false;
     }
   };
 
+  const cleanup = () => {
+  if (videoRef.current) {
+    videoRef.current.removeAttribute('src');
+    videoRef.current.load();
+  }
+  if (mediaSourceRef.current) {
+    mediaSourceRef.current = null;
+  }
+  if (sourceBufferRef.current) {
+    sourceBufferRef.current = null;
+  }
+  if (window._movieDetailInterval) {
+    clearInterval(window._movieDetailInterval);
+    window._movieDetailInterval = null;
+  }
+};
   useEffect(() => {
     initializeVideo();
-    return () => {
-      if (videoRef.current) {
-        videoRef.current.removeAttribute('src');
-        videoRef.current.load();
-      }
-      if (mediaSourceRef.current) {
-        mediaSourceRef.current = null;
-      }
-      if (sourceBufferRef.current) {
-        sourceBufferRef.current = null;
-      }
-      if (window._movieDetailInterval) {
-        clearInterval(window._movieDetailInterval);
-        window._movieDetailInterval = null;
-      }
-    };
+    return cleanup
   }, []);
 
   return <video ref={videoRef} onError={console.log} controls style={{ width: '100%' }} />;
