@@ -19,6 +19,9 @@ const streamingSchema = S.object()
 const manifestSchema = S.object()
     .prop('id', S.string().required())
 
+const watchedMovieSchema = S.object()
+    .prop('id', S.string().required())
+
 const updateSchema = S.object()
     .prop('name', S.string().minLength(1))
     .prop('surname', S.string().minLength(1))
@@ -32,3 +35,4 @@ export const loginValidation = {body: loginSchema}
 export const updateValidation = {body: updateSchema, hide: true}
 export const streamingValidation = {query: streamingSchema}
 export const manifestValidation = {query: manifestSchema}
+export const watchedMovieValidation = {query: watchedMovieSchema}

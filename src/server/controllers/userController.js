@@ -94,4 +94,18 @@ async function getWatchedMovie(req, reply) {
 
 }
 
-export default {deleteUser, getUsers, getUser, modifyInfo, getWatchedMovie}
+async function watchedMovie(req, reply) {
+    try {
+        const collection = this.mongo.db.collection('users');
+        const id = new this.mongo.ObjectId(req.user.id);
+        const user = await collection.findOne(id);
+        user.watchedMovie.push(req.query.id)
+        await collection.findOneAndUpdate({_id: id}, {$set: {"watchedMovie": user.watchedMovie}});
+        reply.status(200).send()
+    } catch(e) {
+        console.log(e)
+        reply.status(500).send({error: e});
+    }
+}
+
+export default {deleteUser, getUsers, getUser, modifyInfo, getWatchedMovie, watchedMovie}

@@ -106,7 +106,6 @@ async function isSegmentValid(initPath, segmentPath=null) {
             ffprobe.on('error', (err) => reject(err));
         });
         await fs.promises.unlink(tempFile);
-        // console.log(`Is segment valid: ${result.status === 0}`);
         return result.status === 0;
     } catch(e) {
         if(await fileExist(tempFile))

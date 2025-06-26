@@ -30,8 +30,10 @@ export default function MovieDetail() {
         }
         const res = await fetch(`http://127.0.0.1:8080/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        if(res.status === 204)
+        if(res.status === 204) {
           Done.current = true;
+          fetch(`http://127.0.0.1:8080/user/watchedMovie?id=${location.state.movie.id}`);
+        }
         const buffer = new Uint8Array(await res.arrayBuffer());
         return buffer
       } catch (err) {
@@ -86,7 +88,7 @@ export default function MovieDetail() {
     if(Done.current || pumpingFlag.current) return;
     pumpingFlag.current = true;
     const currentPiece = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
-    if(nextSegmentIndex.current - currentPiece >= 10) {
+    if(nextSegmentIndex.current - currentPiece >= 20) {
       console.log(`playback ${videoRef.current.currentTime} `+'total buffeer:', nextSegmentIndex.current - currentPiece);
       pumpingFlag.current = false;
       return;

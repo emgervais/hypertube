@@ -15,7 +15,6 @@ export default class BitTorrentClient {
     this.torrent        = null
     this.totalPieces    = 0
     this.fileLength = 0;
-    // this.lastPieceSize    = 0
     this.receivedTracker = false;
     this.uploadUnchoked = new Set();
     this.optimisticUnchoke = null;
@@ -23,9 +22,8 @@ export default class BitTorrentClient {
     this.offsetBegin = 0;
     this.offsetBlock = 0;
     if (received) {
-      console.log("in____________________________________________________")
       this.receivedPieces = received;
-      this.requestedPieces = received.map(piece => piece.every(i=>i === true) ? new Array(piece.length).fill(true): new Array(piece.length).fill(false));
+      this.requestedPieces = received.map(piece => piece[0] === true ? new Array(piece.length).fill(true): new Array(piece.length).fill(false));
   } else {
       this.receivedPieces = null;
       this.requestedPieces = null;
@@ -122,7 +120,6 @@ export default class BitTorrentClient {
         this.offsetPiece = Math.floor(totalBytes / this.torrent.info['piece length']);
         this.offsetBegin = totalBytes % this.torrent.info['piece length'] % (1024 * 16);
         this.offsetBlock = Math.floor(totalBytes % this.torrent.info['piece length'] / (1024 * 16));
-        // this.lastPieceSize = (file.length + this.offsetBegin) % this.torrent.info['piece length']; //wrong
         return file.length;
       }
       totalBytes += file.length;
@@ -137,7 +134,6 @@ export default class BitTorrentClient {
     console.log('Starting download')
     const res = await fetch(this.torrentUrl);
     this.torrent = bencode.decode(Buffer.from(await res.arrayBuffer()));
-    // this.torrent = bencode.decode(Buffer.from(fs.readFileSync('./bigBunny.torrent')));
     let name;
     const files = this.torrent.info['files']
     if(files) {
@@ -328,7 +324,6 @@ export default class BitTorrentClient {
     const socket = this.peersList[socketId].socket;
 
     socket.on('data', recvBuf => {
-      // console.log(`Received ${recvBuf.length} bytes from ${socketId}`);
       const msgLen = () => handshake ? buf.readUInt8(0) + 49 : buf.readInt32BE(0) + 4;
       buf = Buffer.concat([buf, recvBuf]);
       while (buf.length >= 4 && buf.length >= msgLen()) {
@@ -403,7 +398,6 @@ export default class BitTorrentClient {
           }, 10000);
           const isLast = pieceIndex === this.totalPieces - 1 && blockIndex === nBlocks - 1;
           const block = { index: offsettedPieceIndex, begin: offsettedBlockIndex * 16*1024, length: this.blockLen(isLast)}
-          // console.log(`peer: ${socketId} Add piece ${pieceIndex} block ${blockIndex}`)
           peer.queue.push(block);
           return block;
         }
@@ -442,14 +436,12 @@ export default class BitTorrentClient {
     );
   }
   chokeHandler(socketId) {
-    // console.log(`socket ${socketId} choked us`);
     this.peersList[socketId].choked = true;
     this.clearQueue(socketId);
     this.peersList[socketId].queue = [];
   }
 
   unchokeHandler(socketId) {
-    // console.log(`socket ${socketId} unchoked us`);
     this.peersList[socketId].choked = false;
     for (let i = 0; i < 5; i++) {
       this.requestPiece(socketId);
@@ -574,7 +566,7 @@ export default class BitTorrentClient {
       peer.socket.destroy();
     }
     
-    return this.receivedPieces;
+    return this.receivedPieces.map((piece) => piece.every(i=>i) ? piece : new Array(piece.length).fill(false));
   }
 }
 
