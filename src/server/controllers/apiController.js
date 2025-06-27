@@ -49,7 +49,7 @@ async function getMovies(req, reply) {
 async function findMovie(id) {
     const res = await fetch(`https://yts.mx/api/v2/movie_details.json?imdb_id=${id}`);
     const results = res.ok? await res.json(): [];
-    let subs = []
+    const subs = new Map;
     const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`);
     if(subPage.ok) {
         const html = await subPage.text();
@@ -61,7 +61,11 @@ async function findMovie(id) {
           const cells = [...row.querySelectorAll('td')];
           return {[cells[1].textContent]: `https://yifysubtitles.ch${row.querySelector('a').href.replace('subtitles', 'subtitle')}.zip`}
         });
-        subs = [...new Set(rowData.map(row => Object.keys(row)[0]))]
+        rowData.forEach((row) => {
+            const [language, url] = Object.entries(row)[0]
+            if(!subs.has(language))
+                subs.set(language, url);
+        })
     }
     const movie = results.data.movie
     return [movie, subs];
@@ -69,14 +73,14 @@ async function findMovie(id) {
 async function getMovie(req, reply) {
     try {
         const [movie, subs] = await findMovie(req.params.id);
+        console.log(subs)
         const commentsCollection = this.mongo.db.collection("comments");
         const comments = await commentsCollection.find({movie_id: req.params.id}).toArray()
-        reply.status(200).send({id: movie.imdb_code, name: movie.title, rating: movie.rating, year: movie.year, length: movie.runtime, subtitles: subs, comments: comments});
+        reply.status(200).send({id: movie.imdb_code, name: movie.title, rating: movie.rating, year: movie.year, length: movie.runtime, subtitles: Object.fromEntries(subs), comments: comments});
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message})
-    }
-    
+    }  
 }
 
 async function getMovieFilter(req, reply) {

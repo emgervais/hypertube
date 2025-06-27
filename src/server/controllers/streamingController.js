@@ -6,7 +6,7 @@ import { spawn } from 'child_process';
 import BitTorrentClient from '../BitTorrent.js';
 import ffmpeg from 'fluent-ffmpeg'
 import { Buffer } from 'buffer';
-import { spawnSync } from 'child_process';
+import { languagesMap } from '../schema/language.js';
 
 const activeDownloads = {};
 
@@ -18,12 +18,12 @@ async function chooseTorrent(torrents) {
 }
 
 async function movieCreation(id, collection) {
-    const movie = await apiController.findMovie(id);
+    const [movie, subs] = await apiController.findMovie(id);
     if(!movie)
         return (null);
-    const torrentUrl = await chooseTorrent(movie[0].torrents);
-    const insertRes = await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, bitBody: {
-        length: movie[0].runtime * 60,
+    const torrentUrl = await chooseTorrent(movie.torrents);
+    const insertRes = await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, subtitles: subs, bitBody: {
+        length: movie.runtime * 60,
         torrentUrl: torrentUrl,
         file: null,
         blocks: null,
@@ -74,7 +74,7 @@ async function manifest(req, reply) {
         // file: null,
         // blocks: null,
     // }});
-        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
+        await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
         const movie = await collection.findOne({filmId: id});
         if(!movie)
             return reply.status(404).send()
@@ -82,7 +82,31 @@ async function manifest(req, reply) {
     } catch(e) {
         console.log(e)
     }
-    
+}
+
+async function subtitle(req, reply) {
+    try {
+        const userCollection = this.mongo.db.collection('users');
+
+        // const userId = new this.mongo.ObjectId(req.user.id);
+        const user = await userCollection.findOne({username: 'egervaiss'})
+        const userLanguage = languagesMap[user.language];
+        const [movie, subs] = await apiController.findMovie("tt5095030");
+        const movieLanguage = movie.language;
+        if(movieLanguage === userLanguage)
+            return reply.status(204).send()
+        const url = subs.get(userLanguage)
+        if(!url)
+            return reply.status(204).send()
+        const res = await fetch(url) //unzip
+        if(!res.ok)
+            return reply.status(204).send()
+        const subtitles = await res.text()
+        return reply.status(200).send(subtitles);
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: e});
+    }
 }
 
 async function isSegmentValid(initPath, segmentPath=null) {
@@ -259,4 +283,4 @@ async function deleteMovie(req, reply) {
     }
 }
 
-export default { stream, getAllMovies, deleteMovie, stopDownload, manifest }
+export default { stream, getAllMovies, deleteMovie, stopDownload, manifest, subtitle}

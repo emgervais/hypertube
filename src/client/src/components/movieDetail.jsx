@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
+import { useFetchWithAuth } from '../utils/fetchProtected.js'
 // import MP4Box from 'mp4box';
 
 export default function MovieDetail() {
@@ -11,6 +12,7 @@ export default function MovieDetail() {
   const nextSegmentIndex = useRef(0);
   const pumpingFlag = useRef(false);
   const Done = useRef(false);
+  const fetchWithAuth = useFetchWithAuth();
   const segmentSize = 4;
 
   const fetchSegment = async (index) => {
@@ -82,6 +84,28 @@ export default function MovieDetail() {
           sourceBufferRef.current.remove(start, playback - 10);
       }
     }, 2000);
+    //sbtitles
+    const track = document.getElementById('sub');
+    fetchWithAuth(`/stream/subtitle?id=${location.state.movie.id}`)
+    .then(async res => {
+    let subsData = await res.text();
+    let vttData = subsData;
+
+    const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
+    console.log(isSRT)
+    if (isSRT) {
+      vttData = 'WEBVTT\n\n' + subsData
+        .replace(/\r\n|\r|\n/g, '\n')
+        .replace(/(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/g,
+          '$2.000 --> $3.000')
+        .replace(/,/g, '.');
+    }
+
+    const blob = new Blob([vttData], { type: 'text/vtt' });
+    const url = URL.createObjectURL(blob);
+    track.src = url;
+    track.default = true;
+    });
  };
 
   const pumpNextSegment = async () => {
@@ -138,5 +162,6 @@ export default function MovieDetail() {
     return cleanup
   }, []);
 
-  return <video ref={videoRef} onError={console.log} controls style={{ width: '100%' }} />;
+  return <video ref={videoRef} onError={console.log} controls style={{ width: '100%' }}>
+    <track id="sub" kind="subtitles" /> </video>;
 }
