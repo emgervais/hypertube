@@ -10,3 +10,4 @@ film
 *.avi
 *.webm
 src/server/movies/*
+test

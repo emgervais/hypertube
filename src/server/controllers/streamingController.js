@@ -222,7 +222,7 @@ async function stream(req, reply) {
         }
 
         if (!activeDownloads[id] && !movie.isDownloaded) {
-            await startDownload(movie, collection);
+            // await startDownload(movie, collection);
             console.log('Movie download started');
 
             return reply.status(503).header('Retry-After', 30).send();

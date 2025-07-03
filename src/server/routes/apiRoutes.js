@@ -28,9 +28,11 @@ async function apiRoutes (fastify, options) {
     fastify.get('/movies/:id', {schema: getCommentValidation}, apiController.getMovie)
     fastify.get('/movies/filter', {schema: getMovieValidation}, apiController.getMovieFilter)
     fastify.get('/comments', apiController.getComments)
+    fastify.get('/movieComments/:id', apiController.getMovieComments);
     fastify.get('/comments/:id', {preHandler: [fastify.authenticate, apiValidation], schema: getCommentValidation}, apiController.getComment)
     fastify.patch('/comments/:id', {preHandler: [fastify.authenticate, apiValidation], schema: updateCommentValidation}, apiController.patchComment)
     fastify.post('/comments', {preHandler: [fastify.authenticate, apiValidation], schema: addCommentValidation}, apiController.postComment)
+    fastify.post('/addComments', {preHandler: [fastify.authenticate], schema: {...addCommentValidation, hide: true}}, apiController.postComment)
     fastify.delete('/comments/:id', {preHandler: [fastify.authenticate, apiValidation], schema: getCommentValidation}, apiController.deleteComment)
 }
 

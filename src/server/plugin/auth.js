@@ -16,6 +16,7 @@
         throw new Error("Token expired");
       req.user = decoded
     } catch(e) {
+      console.log('----------------------------', e);
       return reply.status(401).send({ error: 'Invalid token' })
     }
   }

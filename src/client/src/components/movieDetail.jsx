@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
+import Comments from './Comments.jsx'
 // import MP4Box from 'mp4box';
 
 export default function MovieDetail() {
@@ -12,6 +13,7 @@ export default function MovieDetail() {
   const nextSegmentIndex = useRef(0);
   const pumpingFlag = useRef(false);
   const Done = useRef(false);
+  const [started, setStarted] = useState(false)
   const fetchWithAuth = useFetchWithAuth();
   const segmentSize = 4;
 
@@ -157,11 +159,30 @@ export default function MovieDetail() {
     window._movieDetailInterval = null;
   }
 };
+const startFilm = () => {
+  setStarted(true);
+}
   useEffect(() => {
-    initializeVideo();
-    return cleanup
-  }, []);
+    if(started) {
+      // initializeVideo();
+      return cleanup
+    }
+  }, [started]);
 
-  return <video ref={videoRef} onError={console.log} controls style={{ width: '100%' }}>
-    <track id="sub" kind="subtitles" /> </video>;
+  return (<div className='grow-5 m-10 flex flex-col justify-between items-center'>
+    <div className='w-2/3'>
+    {started? 
+    <video className="w-full" ref={videoRef} onError={console.log} controls>
+      <track id="sub" kind="subtitles" />
+    </video>
+    :
+    <div className='max-h-full relative' onClick={startFilm}>
+      <img className='w-full' src={location.state.movie.image}></img>
+      <div className=' flex justify-center items-center absolute top-px size-full z-3'><h1>PLAY</h1></div>
+        <div id="overlay" className='size-full bg-black opacity-30 absolute z-2 top-px'>
+      </div>
+    </div>}
+    </div>
+    <Comments id={location.state.movie.id} />
+  </div>);
 }

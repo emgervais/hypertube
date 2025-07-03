@@ -122,6 +122,17 @@ async function getComments(req, reply) {
         reply.status(500).send({error: e.message})
     }
 }
+async function getMovieComments(req, reply) {
+    const movieId = req.params.id;
+    try {
+        const collection = this.mongo.db.collection("comments");
+        const comments = await collection.find({movie_id: movieId}).toArray();
+        return reply.status(200).send(comments);
+    }catch(e) {
+        console.log(e);
+        return reply.status(500).send({error: e});
+    }
+}
 async function getComment(req, reply) {
     try {
         const collection = this.mongo.db.collection("comments");
@@ -142,13 +153,15 @@ async function postComment(req, reply) {
         const id = new this.mongo.ObjectId(req.user.id)
         const user = await userCollection.findOne(id);
         const collection = this.mongo.db.collection("comments");
-        const comments = await collection.insertOne({username: user.username, movie_id: req.body.movie_id, comment: req.body.comment, date: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ${date.toTimeString().slice(0, 8)}`})
-        reply.status(200).send(comments);
+        const comment = {username: user.username, movie_id: req.body.movie_id, comment: req.body.comment, date: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ${date.toTimeString().slice(0, 8)}`}
+        const comments = await collection.insertOne(comment);
+        reply.status(200).send(comment);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message})
     }
 }
+
 async function patchComment(req, reply) {
     try {
         const commentId = new this.mongo.ObjectId(req.params.id);
@@ -176,4 +189,4 @@ async function deleteComment(req, reply) {
     }
 }
 
-export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieFilter, findMovie}
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieComments, getMovieFilter, findMovie}
