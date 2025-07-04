@@ -19,7 +19,8 @@ export default async function fetchYTS(params) {
 
     url.searchParams.set("limit", 50);
     // console.log("TYSUrl: ", url.toString())
-        const res = await fetch(url);
+    console.log('---------', url)
+    const res = await fetch(url);
         const movies = await res.json();
         return (movies.data.movies.map((movie) => ({
                 id: movie.imdb_code,

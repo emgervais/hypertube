@@ -2,6 +2,7 @@ import { useLocation } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
 import Comments from './Comments.jsx'
+import MovieInfos from './MovieInfos.jsx'
 // import MP4Box from 'mp4box';
 
 export default function MovieDetail() {
@@ -36,7 +37,9 @@ export default function MovieDetail() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         if(res.status === 204) {
           Done.current = true;
-          fetch(`http://127.0.0.1:8080/user/watchedMovie?id=${location.state.movie.id}`);
+          fetch(`http://127.0.0.1:8080/user/watchedMovie?id=${location.state.movie.id}`, {
+            method: 'PUT'
+          });
         }
         const buffer = new Uint8Array(await res.arrayBuffer());
         return buffer
@@ -170,6 +173,7 @@ const startFilm = () => {
   }, [started]);
 
   return (<div className='grow-5 m-10 flex flex-col justify-between items-center'>
+    <MovieInfos id={location.state.movie.id} title={location.state.movie.title} year={location.state.movie.year} runtime={location.state.movie.runtime} rating={location.state.movie.rating} />
     <div className='w-2/3'>
     {started? 
     <video className="w-full" ref={videoRef} onError={console.log} controls>

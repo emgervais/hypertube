@@ -13,7 +13,8 @@ const addCommentSchema = S.object()
 const updateCommentSchema = S.object()
     .prop('username', S.string().required())
     .prop('comment', S.string().required())
-const getCommentSchema = S.object()
+
+const oneParamSchema = S.object()
     .prop('id', S.string().required())
 
 const getMovieSchema = S.object()
@@ -28,9 +29,9 @@ const getMovieSchema = S.object()
 
 export const updateValidation = {body: updateSchema}
 export const addCommentValidation = {body: addCommentSchema}
-export const getCommentValidation = {params: getCommentSchema}
+export const oneParamValidation = {params: oneParamSchema}
 export const getMovieValidation = {query: getMovieSchema}
-export const updateCommentValidation = {body: updateCommentSchema, params: getCommentSchema}
+export const updateCommentValidation = {body: updateCommentSchema, ...oneParamValidation}
 // export const updateCommentValidation = {body: updateCommentSchema}
 
 //https://yts.mx/api

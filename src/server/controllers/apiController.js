@@ -93,15 +93,17 @@ async function getMovieFilter(req, reply) {
         const clearList = fullList.filter((movie, index, self) => 
             index === self.findIndex(m => m.id === movie.id)
         );
+        // const clearList = []
         if(req.query.page === 1) {
             clearList.unshift({
-                id: 'bunny',
-                title: 'bunny',
-                year: '2017',
+                id: 'tt1254207',
+                title: 'Big Buck Bunny',
+                year: '2008',
                 runtime: '10',
                 genres: 'animation',
                 image: 'http://localhost:8080/images/bunny.jpg',
                 rating: '10',
+                summary: 'An enormous, fluffy, and utterly adorable rabbit is heartlessly harassed by the ruthless, loud, bullying gang of a flying squirrel, who is determined to squash his happiness.',
                 torrents: 'https://archive.org/download/BigBuckBunny_124/BigBuckBunny_124_archive.torrent'
             });
         }
@@ -109,6 +111,32 @@ async function getMovieFilter(req, reply) {
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message});
+    }
+}
+async function getMovieDetails(req, reply) {
+    try{
+        const res = await fetch(`https://api.themoviedb.org/3/find/${req.params.id}?external_source=imdb_id`, {
+            headers: {
+                accept: 'application/json',
+                Authorization: `Bearer ${process.env.TMDB}`
+            }
+        });
+        if(!res.ok)
+            return reply.status(404).send();
+        const movieDetails = await res.json();
+        const actorRes = await fetch(`https://api.themoviedb.org/3/movie/${movieDetails.movie_results[0].id}/credits?language=en-US`, {
+            headers: {
+                accept: 'application/json',
+                Authorization: `Bearer ${process.env.TMDB}`
+            }
+        });
+        const crewDetails = await actorRes.json();
+        const director = crewDetails.crew.find(member => member.job === "Director");
+        console.log(crewDetails.cast);
+        return reply.status(200).send({summary: movieDetails.movie_results[0].overview, cast: crewDetails.cast.slice(0, 5), director: director})
+    }catch(e) {
+        console.log(e);
+        return reply.status(500).send({error: e});
     }
 }
 async function getComments(req, reply) {
@@ -189,4 +217,4 @@ async function deleteComment(req, reply) {
     }
 }
 
-export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieComments, getMovieFilter, findMovie}
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieComments, getMovieFilter, findMovie, getMovieDetails}

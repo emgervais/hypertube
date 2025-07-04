@@ -1,15 +1,12 @@
-video
--------------------------
-video player, summary, producer, actors, prodyear, length, rating, coverimage
-comments
-
-comments
-get new oauth2 42 secret
-check if partial movie working with mediapipe
-check if download sync with movie streaming
-
-priorizing right piece according to playback (prob not?)
-
+test more streaming
+mobile
+cleanup
+retest whole features
+bug with being loggedin sometime
+subtitle
+fix getmovie api route (only uses one source rn)
+cron job to delete old movie (30 days)
+make sure api is restfull
 
 
 
@@ -18,3 +15,10 @@ security
 ------------------
 xss
 unwanted upload
+
+Bonus
+-----------------------
+manage playback
+mediasource
+more routes (admin routes)
+offer account deletion

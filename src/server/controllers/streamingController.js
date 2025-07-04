@@ -210,7 +210,7 @@ async function mediaPipe(filePath, folderPath, id) {
 }
 async function stream(req, reply) {
     try {
-        const { id, segment, init } = req.query;
+        const { id, segment} = req.query;
 
         const segmentIndex = parseInt(segment, 10);
 
@@ -261,26 +261,4 @@ async function stream(req, reply) {
     }
 }
 
-async function getAllMovies(req, reply) {
-    try {
-        const collection = this.mongo.db.collection('movies');
-        const movies = await collection.find({}, { projection: { "bitBody.blocks": 0 } }).toArray();//collection.findOne({filmId: 'bunny'})
-        reply.send(movies);
-    } catch(e) {
-        console.log(e);
-        reply.status(500).send({error: 'Internal server error'})
-    }
-}
-
-async function deleteMovie(req, reply) {
-    try {
-        const collection = this.mongo.db.collection('movies');
-        await collection.findOneAndDelete({filmId: req.params.id});
-        reply.status(200);
-    } catch(e) {
-        console.log(e);
-        reply.status(500).send({error: 'Internal server error'})
-    }
-}
-
-export default { stream, getAllMovies, deleteMovie, stopDownload, manifest, subtitle}
+export default { stream, manifest, subtitle}

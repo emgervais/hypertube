@@ -14,6 +14,7 @@ import apiRoutes from "./routes/apiRoutes.js"
 import authRoutes from "./routes/authRoutes.js"
 import streamingRoutes from "./routes/streamingRoutes.js"
 import userRoutes from "./routes/userRoutes.js"
+import adminRoutes from "./routes/adminRoutes.js"
 
 dotenv.config()
 
@@ -99,6 +100,7 @@ const fastify = Fastify({
 .register(authRoutes, {prefix: '/auth'})
 .register(userRoutes, {prefix: '/user'})
 .register(apiRoutes, {prefix: '/api'})
+.register(adminRoutes, {prefix: '/admin'})
 .register(streamingRoutes, {prefix: '/stream'})
 .decorate('authenticate', auth)
 .register(import('@fastify/static'), {
