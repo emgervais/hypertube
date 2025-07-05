@@ -12,6 +12,7 @@ async function authRoutes (fastify, options) {
     fastify.get('/42', { schema: {hide: true} }, authController.oauth42)
     fastify.get('/google/callback', { schema: {hide: true} }, authController.oauthGoogleCallback)
     fastify.get('/google', {schema: {hide:true}}, authController.google)
+    fastify.get('/tokenTest', {preHandler: fastify.authenticate, schema: {hide:true}}, (req, reply) => {reply.status(200).send()})
 }
 
 export default authRoutes;

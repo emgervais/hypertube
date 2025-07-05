@@ -33,6 +33,22 @@ export function AuthProvider({ children }) {
     await fetch('http://127.0.0.1:8080/auth/logout', {credentials: 'include'});
   };
 
+  useEffect(() => {
+    if (!accessToken) {
+      fetch('http://127.0.0.1:8080/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      })
+        .then(res => res.ok ? res.json() : null)
+        .then(data => {
+          if (data && data.accessToken && data.username) {
+            setAccessToken(data.accessToken);
+            setUsername(data.username);
+          }
+        });
+    }
+  }, []);
+
   const value = { accessToken, username, login, logout, updateUsername };
 
   return (
