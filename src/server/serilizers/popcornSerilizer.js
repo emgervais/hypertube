@@ -1,61 +1,72 @@
-export default async function fetchPopcorn(params) {
-    try {
-    const url = new URL(`https://fusme.link/movies/${params.page || 1}`)
-    const names = {
-        name: "keywords",
-        genre: "genre",
-        sort: "sort"
-    }
-    const sortValues = {
-        title: "name",
-        rating: "rating",
-        year: "released",
-        download_count: "trending"
-    }
-    for(let [key, value] of Object.entries(params)) {
-        if(value === undefined || !names[key])
-            continue;
-        if (key === "sort")
-            value = sortValues[value];
-        url.searchParams.set(names[key], value);
-    }
-    if(params.sort && "title" === params.sort)
-        url.searchParams.set("order", "1");
-    else
-        url.searchParams.set("order", "-1");
-
-    const res = await fetch(url);
-    const movies = await res.json();
-    const results = movies.filter((movie) => {
-        if (params.rating && movie.rating.percentage / 10 < params.rating) {
-            return false;
-        }
-        if (params.quality) {
-            for (const [_, torrents] of Object.entries(movie.torrents)) {
-                for (const [quality, _] of Object.entries(torrents)) {
-                    if (params.quality !== '3D') {
-                        if (parseInt(quality.slice(0, -2)) >= parseInt(params.quality.slice(0, -2))) {
+async function filterResults(movies, quality, rating) {
+    movies.filter((movie) => {
+            if (rating && movie.rating.percentage / 10 < rating) {
+                return false;
+            }
+            if (quality) {
+                for (const [_, torrents] of Object.entries(movie.torrents)) {
+                    for (const [quality, _] of Object.entries(torrents)) {
+                        if (quality !== '3D') {
+                            if (parseInt(quality.slice(0, -2)) >= parseInt(quality.slice(0, -2))) {
+                                return true;
+                            }
+                        } else if (quality === '3D' && quality === '3D') {
                             return true;
                         }
-                    } else if (params.quality === '3D' && quality === '3D') {
-                        return true;
                     }
                 }
+                return false;
             }
-            return false;
+            return true;
+        });
+}
+
+export default async function fetchPopcorn(params) {
+    try {
+        const url = new URL(`https://fusme.link/movies/${params.page || 1}`)
+        const names = {
+            name: "keywords",
+            genre: "genre",
+            sort: "sort"
         }
-        return true;
-    });
-    return (results.map((movie) => ({
-        id: movie.imdb_id,
-        title: movie.title,
-        year: movie.year,
-        runtime: movie.runtime,
-        genres: movie.genres,
-        image: movie.images.poster,
-        rating: movie.rating.percentage / 10,
-        torrents: movie.torrents
-    })));
+        const sortValues = {
+            title: "name",
+            rating: "rating",
+            year: "released",
+            download_count: "trending"
+        }
+        for(let [key, value] of Object.entries(params)) {
+            if(value === undefined || !names[key])
+                continue;
+            if (key === "sort")
+                value = sortValues[value];
+            url.searchParams.set(names[key], value);
+        }
+        if(params.sort && "title" === params.sort)
+            url.searchParams.set("order", "1");
+        else
+            url.searchParams.set("order", "-1");
+    
+        const res = await fetch(url);
+        if(!res.ok) {
+            console.warn("Failed fetching popcorn API");
+            return([]);
+        }
+        const movies = await res.json();
+        let results = movies;
+        if(params.quality || params.rating)
+            results = await filterResults(movies, params.quality, params.rating);
+        
+        return (results.map((movie) => ({
+            id: movie.imdb_id,
+            title: movie.title,
+            year: movie.year,
+            runtime: movie.runtime,
+            genres: movie.genres,
+            image: movie.images.poster,
+            rating: movie.rating.percentage / 10,
+            torrents: movie.torrents
+        })));
     } catch(e) {
         console.log(e);
         return ([]);

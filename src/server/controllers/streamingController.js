@@ -1,4 +1,4 @@
-import apiController from './apiController.js'
+import { findMovie } from '../utils/apiUtils.js';
 import fs from 'fs'
 import { readFile } from 'fs/promises';
 import path from 'path';
@@ -18,7 +18,7 @@ async function chooseTorrent(torrents) {
 }
 
 async function movieCreation(id, collection) {
-    const [movie, subs] = await apiController.findMovie(id);
+    const [movie, subs] = await findMovie(id);
     if(!movie)
         return (null);
     const torrentUrl = await chooseTorrent(movie.torrents);
@@ -91,7 +91,7 @@ async function subtitle(req, reply) {
         // const userId = new this.mongo.ObjectId(req.user.id);
         const user = await userCollection.findOne({username: 'egervaiss'})
         const userLanguage = languagesMap[user.language];
-        const [movie, subs] = await apiController.findMovie("tt5095030");
+        const [movie, subs] = await findMovie("tt5095030");
         const movieLanguage = movie.language;
         if(movieLanguage === userLanguage)
             return reply.status(204).send()

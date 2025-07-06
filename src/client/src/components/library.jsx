@@ -52,7 +52,7 @@ export default function Library() {
 
     useEffect(() => {
         const init = async () => {
-            const res = await fetchProtected('/user/getWatchedMovie');
+            const res = await fetchProtected('/user/watchedMovie');
             const watched = await res.json();
             setWatched(watched);
         }

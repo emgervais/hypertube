@@ -7,7 +7,7 @@ async function deleteUser(req, reply) {
         await collection.deleteOne({_id: id});
         reply.status(204);
     } catch(e) {
-        reply.status(500).send({error: "Server error"});
+        reply.status(500).send({error: "Failed to delete user"});
     }    
 }
 
@@ -18,7 +18,7 @@ async function deleteMovie(req, reply) {
         reply.status(200);
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: 'Internal server error'})
+        reply.status(500).send({error: 'Failed to delete movie'})
     }
 }
 
@@ -26,10 +26,10 @@ async function getAllMovies(req, reply) {
     try {
         const collection = this.mongo.db.collection('movies');
         const movies = await collection.find({}, { projection: { "bitBody.blocks": 0 } }).toArray();
-        reply.send(movies);
+        reply.status(200).send(movies);
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: 'Internal server error'})
+        reply.status(500).send({error: 'Couldn\'t fetch movies from DB'})
     }
 }
 
@@ -39,7 +39,7 @@ async function getUsers(req, reply) {
         const users = await collection.find({}, { projection: { picture: 0 } }).toArray();
         reply.status(200).send(users);
     } catch(e) {
-        reply.status(500).send({error: "Server error"});
+        reply.status(500).send({error: "Couldn\n't fetch users"});
     }
 }
 

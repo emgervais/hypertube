@@ -1,17 +1,8 @@
 test more streaming
 mobile
-cleanup
 retest whole features
 subtitle
 fix getmovie api route (only uses one source rn)
-make sure api is restfull
-
-
-
-
-security
-------------------
-unwanted upload
 
 Bonus
 -----------------------
@@ -19,3 +10,12 @@ manage playback
 mediasource
 more routes (admin routes)
 offer account deletion
+
+cleanup
+------------------------
+authcontroller
+streamingcontroller
+usercontroller
+plugins
+bittorrent
+index

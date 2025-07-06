@@ -1,6 +1,5 @@
-import jsdom from 'jsdom'
-import fetchYTS from '../serilizers/ytsSerilizer.js'
-import fetchPopcorn from "../serilizers/popcornSerilizer.js"
+import { fetchMovies, findMovie, fetchMovieDetails } from '../utils/apiUtils.js';
+
 async function getUsers(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -12,7 +11,7 @@ async function getUsers(req, reply) {
         reply.status(200).send(users);
     } catch (e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Failed to fetch users"})
     }
 }
 
@@ -26,141 +25,81 @@ async function getUser(req, reply) {
         reply.status(200).send({username: user.username, email: user.email, picture: user.picture})
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Failed to fetch user"})
     }
 }
 
 
 async function getMovies(req, reply) {
     try {
-        const res = await fetch('https://yts.mx/api/v2/list_movies.json?limit=50');
-        const results = await res.json();
-        const movies = results.data.movies.map(movie => ({
+        const results = await fetchMovies();
+        reply.status(200).send(results.map(movie => ({
             id: movie.id,
             name:  movie.title
-        }));
-        reply.status(200).send(results.data.movies);
+        })));
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Failed to fetch movies"})
     }
 }
 
-async function findMovie(id) {
-    const res = await fetch(`https://yts.mx/api/v2/movie_details.json?imdb_id=${id}`);
-    const results = res.ok? await res.json(): [];
-    const subs = new Map;
-    const subPage = await fetch(`https://yifysubtitles.ch/movie-imdb/${id}`);
-    if(subPage.ok) {
-        const html = await subPage.text();
-        const dom = new jsdom.JSDOM(html);
-        const document = dom.window.document;
-    
-        const rows = [...document.querySelectorAll('tbody tr')];
-        const rowData = rows.map(row => {
-          const cells = [...row.querySelectorAll('td')];
-          return {[cells[1].textContent]: `https://yifysubtitles.ch${row.querySelector('a').href.replace('subtitles', 'subtitle')}.zip`}
-        });
-        rowData.forEach((row) => {
-            const [language, url] = Object.entries(row)[0]
-            if(!subs.has(language))
-                subs.set(language, url);
-        })
-    }
-    const movie = results.data.movie
-    return [movie, subs];
-}
 async function getMovie(req, reply) {
     try {
         const [movie, subs] = await findMovie(req.params.id);
-        console.log(subs)
+        if(!movie)
+            return reply.status(404).send({error: "Could not find the movie"});
+
         const commentsCollection = this.mongo.db.collection("comments");
         const comments = await commentsCollection.find({movie_id: req.params.id}).toArray()
         reply.status(200).send({id: movie.imdb_code, name: movie.title, rating: movie.rating, year: movie.year, length: movie.runtime, subtitles: Object.fromEntries(subs), comments: comments});
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Could not get movies and/or comments"})
     }  
 }
 
 async function getMovieFilter(req, reply) {
     try {
-        const [moviesPop, moviesTYS] = await Promise.all([
-            fetchPopcorn(req.query),
-            fetchYTS(req.query),
-        ]);
-        const fullList = moviesTYS.concat(moviesPop);
-        const clearList = fullList.filter((movie, index, self) => 
-            index === self.findIndex(m => m.id === movie.id)
-        );
-        // const clearList = []
-        if(req.query.page === 1) {
-            clearList.unshift({
-                id: 'tt1254207',
-                title: 'Big Buck Bunny',
-                year: '2008',
-                runtime: '10',
-                genres: 'animation',
-                image: 'http://localhost:8080/images/bunny.jpg',
-                rating: '10',
-                summary: 'An enormous, fluffy, and utterly adorable rabbit is heartlessly harassed by the ruthless, loud, bullying gang of a flying squirrel, who is determined to squash his happiness.',
-                torrents: 'https://archive.org/download/BigBuckBunny_124/BigBuckBunny_124_archive.torrent'
-            });
-        }
-        reply.status(200).send(clearList);
+        const movies = await fetchMovies(req.query);
+        reply.status(200).send(movies);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e.message});
     }
 }
+
 async function getMovieDetails(req, reply) {
     try{
-        const res = await fetch(`https://api.themoviedb.org/3/find/${req.params.id}?external_source=imdb_id`, {
-            headers: {
-                accept: 'application/json',
-                Authorization: `Bearer ${process.env.TMDB}`
-            }
-        });
-        if(!res.ok)
-            return reply.status(404).send();
-        const movieDetails = await res.json();
-        const actorRes = await fetch(`https://api.themoviedb.org/3/movie/${movieDetails.movie_results[0].id}/credits?language=en-US`, {
-            headers: {
-                accept: 'application/json',
-                Authorization: `Bearer ${process.env.TMDB}`
-            }
-        });
-        const crewDetails = await actorRes.json();
-        const director = crewDetails.crew.find(member => member.job === "Director");
-        console.log(crewDetails.cast);
-        return reply.status(200).send({summary: movieDetails.movie_results[0].overview, cast: crewDetails.cast.slice(0, 5), director: director})
+        const details = await fetchMovieDetails(req.params.id);
+        return reply.status(200).send(details)
     }catch(e) {
         console.log(e);
-        return reply.status(500).send({error: e});
+        return reply.status(500).send({error: "Could not find the movie details"});
     }
 }
+
 async function getComments(req, reply) {
     try {
         const collection = this.mongo.db.collection("comments");
-        // await collection.drop()
         const comments = await collection.find().sort({date: -1}).limit(10).toArray();
         reply.status(200).send(comments);
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Could not find comments"})
     }
 }
+
 async function getMovieComments(req, reply) {
-    const movieId = req.params.id;
     try {
         const collection = this.mongo.db.collection("comments");
-        const comments = await collection.find({movie_id: movieId}).toArray();
+        const comments = await collection.find({movie_id: req.params.id}).toArray();
         return reply.status(200).send(comments);
     }catch(e) {
         console.log(e);
-        return reply.status(500).send({error: e});
+        return reply.status(500).send({error: "Could not find the comments"});
     }
 }
+
 async function getComment(req, reply) {
     try {
         const collection = this.mongo.db.collection("comments");
@@ -170,23 +109,23 @@ async function getComment(req, reply) {
         reply.status(200).send(comment);
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Could not find the comment"})
     }
 }
 
 async function postComment(req, reply) {
-    const date = new Date()
     try {
+        const date = new Date()
         const userCollection = this.mongo.db.collection("users");
         const id = new this.mongo.ObjectId(req.user.id)
         const user = await userCollection.findOne(id);
         const collection = this.mongo.db.collection("comments");
         const comment = {username: user.username, movie_id: req.body.movie_id, comment: req.body.comment, date: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ${date.toTimeString().slice(0, 8)}`}
-        const comments = await collection.insertOne(comment);
+        await collection.insertOne(comment);
         reply.status(200).send(comment);
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: 'Could not add the comment'})
     }
 }
 
@@ -197,12 +136,13 @@ async function patchComment(req, reply) {
         const comment = await collection.findOneAndUpdate(commentId, {$set: {comment: req.body.comment, username: req.body.username}});
         if (!comment)
             return reply.status(201).send({message: "Could not find the comment"});
-        reply.status(200).send({message: "Comment updated successfully"});
+        reply.status(200).send();
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Could not modify the comment"})
     }
 }
+
 async function deleteComment(req, reply) {
     try {
         const commentId = new this.mongo.ObjectId(req.params.id);
@@ -210,11 +150,11 @@ async function deleteComment(req, reply) {
         const comment = await collection.findOneAndDelete(commentId);
         if (!comment)
             return reply.status(201).send({message: "Could not find the comment"});
-        reply.status(200).send({message: "Comment deleted successfully"});
+        reply.status(200).send();
     } catch(e) {
         console.log(e);
-        reply.status(500).send({error: e.message})
+        reply.status(500).send({error: "Could not delete comment"})
     }
 }
 
-export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieComments, getMovieFilter, findMovie, getMovieDetails}
+export default {getUsers, getUser, getMovies, getMovie, getComments, postComment, getComment, patchComment, deleteComment, getMovieComments, getMovieFilter, getMovieDetails}
