@@ -139,7 +139,11 @@ fastify.after(() => {
 });
 
 fastify.get("/images/:name", (req, reply) => {
-  reply.sendFile(req.params.name)
+  const name = req.params.name;
+  if (!/^[a-zA-Z0-9\-]+\.((jpg)|(jpeg)|(png)|(gif))$/.test(name)) {
+    return reply.status(400).send({ error: "Invalid file name" });
+  }
+  reply.sendFile(name);
 });
 
 async function main() {

@@ -1,5 +1,7 @@
 import fs from 'fs'
 import path from 'path'
+import { fileTypeFromBuffer } from 'file-type';
+import sharp from 'sharp';
 
 async function getUser(req, reply) {
     try {
@@ -47,9 +49,16 @@ async function modifyInfo(req, reply) {
                 return reply.status(400).send({ error: "Invalid base64 image data" });
             }
             const buffer = Buffer.from(base64Data, "base64");
+            const type = await fileTypeFromBuffer(buffer);
+            if (!type || !['image/jpeg', 'image/png', 'image/gif'].includes(type.mime)) {
+                return reply.status(400).send({ error: "Invalid image file type" });
+            }
+            if (buffer.length > 2 * 1024 * 1024) {
+                return reply.status(400).send({ error: "Image too large" });
+            }
             const fileName = `${req.user.id}-${Date.now()}.jpg`;
             const filePath = path.join(process.cwd(), "src", "server", "assets", fileName);
-            fs.writeFileSync(filePath, buffer);
+            await sharp(buffer).jpeg().toFile(filePath);
             req.body.picture = "http://localhost:8080/images/" + fileName;
         }
         await collection.findOneAndUpdate({_id: id}, { $set: req.body });
