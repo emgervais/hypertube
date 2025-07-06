@@ -15,6 +15,7 @@ import authRoutes from "./routes/authRoutes.js"
 import streamingRoutes from "./routes/streamingRoutes.js"
 import userRoutes from "./routes/userRoutes.js"
 import adminRoutes from "./routes/adminRoutes.js"
+import cleanup from './plugin/cleaner.js'
 
 dotenv.config()
 
@@ -131,7 +132,10 @@ fastify.after(() => {
     } else {
         fastify.log.info("Collection 'comments' already exists");
     }
-});
+  });
+  const limit = 24 * 60 * 60 * 1000;
+  setInterval(() => {cleanup(db)}, limit)
+  
 });
 
 fastify.get("/images/:name", (req, reply) => {
@@ -141,7 +145,7 @@ fastify.get("/images/:name", (req, reply) => {
 async function main() {
   fastify.listen({
     port: process.env.PORT
-  })
+  });
 }
 
 const listeners = ['SIGINT', 'SIGTERM']

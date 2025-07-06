@@ -2,10 +2,8 @@ test more streaming
 mobile
 cleanup
 retest whole features
-bug with being loggedin sometime
 subtitle
 fix getmovie api route (only uses one source rn)
-cron job to delete old movie (30 days)
 make sure api is restfull
 
 
@@ -13,7 +11,6 @@ make sure api is restfull
 
 security
 ------------------
-xss
 unwanted upload
 
 Bonus

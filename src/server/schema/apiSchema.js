@@ -24,6 +24,16 @@ const getMovieSchema = S.object()
     .prop('quality', S.string())
     .prop('sort', S.string())
     .prop('page', S.integer())
+
+const addMovieSchema = S.object()
+    .prop('id', S.string().required())
+    .prop('torrentUrl', S.string().required())
+    .prop('runtime', S.integer().required())
+    .prop('lastSeen', S.integer())
+    .prop('isDownloaded', S.boolean())
+    .prop('file', S.string())
+
+
 // const updateCommentSchema = S.object()
 //     .prop('comment', S.string().required())
 
@@ -31,6 +41,7 @@ export const updateValidation = {body: updateSchema}
 export const addCommentValidation = {body: addCommentSchema}
 export const oneParamValidation = {params: oneParamSchema}
 export const getMovieValidation = {query: getMovieSchema}
+export const addMovieValidation = {body: addMovieSchema}
 export const updateCommentValidation = {body: updateCommentSchema, ...oneParamValidation}
 // export const updateCommentValidation = {body: updateCommentSchema}
 

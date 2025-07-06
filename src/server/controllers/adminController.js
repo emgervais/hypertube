@@ -1,3 +1,5 @@
+import fs from 'fs'
+
 async function deleteUser(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -41,4 +43,24 @@ async function getUsers(req, reply) {
     }
 }
 
-export default {deleteUser, deleteMovie, getAllMovies, getUsers}
+async function addMovie(req, reply) {
+    try {
+        const collection = this.mongo.db.collection('movies');
+        await collection.insertOne({filmId: req.body.id, lastSeen: req.body.lastSeen || Date.now(), isDownloaded: req.body.isDownloaded || false, subtitles: [], bitBody: {
+        length: req.body.runtime * 60,
+        torrentUrl: req.body.torrentUrl,
+        file: req.body.file || null,
+        blocks: null,
+    }})
+    if(req.body.file) {
+        try {
+            fs.mkdirSync(req.body.file.split('/').slice(0, -1).join('/'));
+        } catch(e) {}   
+    }
+    reply.status(200).send("Movie Added")
+    } catch(e) {
+        console.log(e);
+        reply.status(500).send({error: "Failed to add movie"});
+    }
+}
+export default {deleteUser, deleteMovie, getAllMovies, getUsers, addMovie}

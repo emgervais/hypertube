@@ -6,6 +6,7 @@ export default function Comments({id}) {
     const [comments, setComments] = useState([]);
 
     const fetchComments = async () => {
+        id = 'tt12'
         const res = await fetch(`http://127.0.0.1:8080/api/movieComments/${id}`)
         const commentsList = await res.json();
         setComments(commentsList);
