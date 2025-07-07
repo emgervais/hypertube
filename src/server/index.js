@@ -49,6 +49,7 @@ const fastify = Fastify({
   routePrefix: '/docs'
 })
 .register(fjwt, { secret: process.env.JWT_SECRET})
+//fucking cors
 .register(cors, { 
   origin: ['http://127.0.0.1:5173'], 
   credentials: true, 
@@ -57,7 +58,9 @@ const fastify = Fastify({
   exposedHeaders: ["set-cookie",'Accept-Ranges', 'Content-Range', 'Content-Length', 'Retry-After'],
   maxAge: 86900
 })
+//db
 .register(db, { forceClose: true, url: process.env.MONGODB_URI})
+//mailer
 .register(mailerPlugin, {
   transport: {
       host: 'smtp.gmail.com',
@@ -72,6 +75,7 @@ const fastify = Fastify({
       from: 'hypertube@mail.com'
   }
 })
+//cookie
 .register(fCookie, {
   secret: process.env.COOKIE,
   hook: 'preHandler',
@@ -82,6 +86,7 @@ const fastify = Fastify({
     path: '/'
   }
 })
+//google oauth
 .register(oauthPlugin, {
   name: 'googleOAuth2',
   scope: 'openid profile email',
@@ -94,23 +99,38 @@ const fastify = Fastify({
   },
   callbackUri: 'http://127.0.0.1:8080/auth/google/callback'
 })
+//jwt as prehandler
 .addHook('preHandler', (req, res, next) => {
   req.jwt = fastify.jwt
   return next()
 })
+//all routes
 .register(authRoutes, {prefix: '/auth'})
 .register(userRoutes, {prefix: '/user'})
 .register(apiRoutes, {prefix: '/api'})
 .register(adminRoutes, {prefix: '/admin'})
 .register(streamingRoutes, {prefix: '/stream'})
+//middleware for auth plugin
 .decorate('authenticate', auth)
+//to serv assets
 .register(import('@fastify/static'), {
   root: path.join(process.cwd(), "src", "server", "assets"),
   prefix: '/images/',
 })
-
+//setup db
 fastify.after(() => {
   const db = fastify.mongo.db;
+  db.listCollections({ name: 'users' }).next((err, collinfo) => {
+      if (err) {
+          fastify.log.error(err);
+          return;
+      }
+      if (!collinfo) {
+          db.createCollection('users').catch(err => fastify.log.error(err));
+      } else {
+          fastify.log.info("Collection 'users' already exists");
+      }
+  });
   db.listCollections({ name: 'movies' }).next((err, collinfo) => {
       if (err) {
           fastify.log.error(err);
@@ -133,11 +153,12 @@ fastify.after(() => {
         fastify.log.info("Collection 'comments' already exists");
     }
   });
+  //cleanup cron
   const limit = 24 * 60 * 60 * 1000;
   setInterval(() => {cleanup(db)}, limit)
   
 });
-
+//route to access assets protects against path traversal and requesting other than image file
 fastify.get("/images/:name", (req, reply) => {
   const name = req.params.name;
   if (!/^[a-zA-Z0-9\-]+\.((jpg)|(jpeg)|(png)|(gif))$/.test(name)) {

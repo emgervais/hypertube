@@ -7,6 +7,7 @@ import BitTorrentClient from '../BitTorrent.js';
 import ffmpeg from 'fluent-ffmpeg'
 import { Buffer } from 'buffer';
 import { languagesMap } from '../schema/language.js';
+import decompress from 'decompress'
 
 const activeDownloads = {};
 
@@ -39,7 +40,7 @@ async function movieCreation(id, collection) {
 async function startDownload(movie, collection) {
     const bitInstance = new BitTorrentClient(movie.bitBody.torrentUrl, movie.bitBody.blocks, movie.bitBody.file);
     activeDownloads[movie.filmId] = {client: bitInstance, timeout: null, isFFmpeg: false}
-    const filePath = await bitInstance.getPeers(movie.filmId);
+    // const filePath = await bitInstance.getPeers(movie.filmId);
     if (movie.bitBody.file === null) {
         await collection.findOneAndUpdate({filmId: movie.filmId}, {$set: {"bitBody.file": filePath}});
     }
@@ -74,7 +75,7 @@ async function manifest(req, reply) {
         // file: null,
         // blocks: null,
     // }});
-        await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
+        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
         const movie = await collection.findOne({filmId: id});
         if(!movie)
             return reply.status(404).send()
@@ -91,7 +92,7 @@ async function subtitle(req, reply) {
         // const userId = new this.mongo.ObjectId(req.user.id);
         const user = await userCollection.findOne({username: 'egervaiss'})
         const userLanguage = languagesMap[user.language];
-        const [movie, subs] = await findMovie("tt5095030");
+        const [movie, subs] = await findMovie(req.params.id);
         const movieLanguage = movie.language;
         if(movieLanguage === userLanguage)
             return reply.status(204).send()
@@ -101,8 +102,13 @@ async function subtitle(req, reply) {
         const res = await fetch(url) //unzip
         if(!res.ok)
             return reply.status(204).send()
-        const subtitles = await res.text()
-        return reply.status(200).send(subtitles);
+        const zipBuffer = Buffer.from(await res.arrayBuffer());
+        const files = await decompress(zipBuffer);
+        const subtitleFile = files.find(file => file.path.endsWith('.srt') || file.path.endsWith('.vtt'));
+        if (!subtitleFile) {
+            return reply.status(204).send();
+        }
+        return reply.status(200).send(subtitleFile);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e});
@@ -211,18 +217,17 @@ async function mediaPipe(filePath, folderPath, id) {
 async function stream(req, reply) {
     try {
         const { id, segment} = req.query;
-
         const segmentIndex = parseInt(segment, 10);
-
+        
         const collection = this.mongo.db.collection('movies');
         const movie = await collection.findOne({ filmId: id }) || await movieCreation(id, collection);
-
+        
         if (!movie) {
             return reply.status(404).send({ error: "Movie not available." });
         }
 
         if (!activeDownloads[id] && !movie.isDownloaded) {
-            // await startDownload(movie, collection);
+            await startDownload(movie, collection);
             console.log('Movie download started');
 
             return reply.status(503).header('Retry-After', 30).send();

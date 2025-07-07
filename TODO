@@ -10,12 +10,9 @@ manage playback
 mediasource
 more routes (admin routes)
 offer account deletion
+starting download where it left off
 
 cleanup
 ------------------------
-authcontroller
-streamingcontroller
-usercontroller
-plugins
 bittorrent
-index
+streamingcontroller

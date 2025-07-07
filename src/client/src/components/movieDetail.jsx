@@ -23,9 +23,9 @@ export default function MovieDetail() {
     while (retries < 10) {
       try {
         if(index === -1) {
-          const res = await fetch(`http://127.0.0.1:8080/stream/manifest?id=${location.state.movie.id}`);
+          const res = await fetchWithAuth(`/stream/manifest?id=${location.state.movie.id}`);
           if(!res.ok) {
-            await fetch(`http://127.0.0.1:8080/stream?id=${location.state.movie.id}&segment=${index}`);
+            await fetchWithAuth(`/stream?id=${location.state.movie.id}&segment=${index}`);
             throw new Error(`HTTP ${res.status}`);
           }
           else {
@@ -33,11 +33,11 @@ export default function MovieDetail() {
             mediaSourceRef.current.duration = manifest.length;
           }
         }
-        const res = await fetch(`http://127.0.0.1:8080/stream?id=${location.state.movie.id}&segment=${index}`);
+        const res = await fetchWithAuth(`/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         if(res.status === 204) {
           Done.current = true;
-          fetch(`http://127.0.0.1:8080/user/watchedMovie?id=${location.state.movie.id}`, {
+          fetchWithAuth(`/user/watchedMovie?id=${location.state.movie.id}`, {
             method: 'PUT'
           });
         }
@@ -89,28 +89,29 @@ export default function MovieDetail() {
           sourceBufferRef.current.remove(start, playback - 10);
       }
     }, 2000);
-    //sbtitles
-    const track = document.getElementById('sub');
-    fetchWithAuth(`/stream/subtitle?id=${location.state.movie.id}`)
-    .then(async res => {
-    let subsData = await res.text();
-    let vttData = subsData;
-
-    const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
-    console.log(isSRT)
-    if (isSRT) {
-      vttData = 'WEBVTT\n\n' + subsData
-        .replace(/\r\n|\r|\n/g, '\n')
-        .replace(/(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/g,
-          '$2.000 --> $3.000')
-        .replace(/,/g, '.');
-    }
-
-    const blob = new Blob([vttData], { type: 'text/vtt' });
-    const url = URL.createObjectURL(blob);
-    track.src = url;
-    track.default = true;
-    });
+    //subtitles
+    fetchWithAuth(`/stream/subtitle/${location.state.movie.id}`)
+      .then(async res => {
+        let subs = await res.json();
+      
+        const subsData = new TextDecoder('utf-8').decode(new Uint8Array(subs.data.data));
+      
+        const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
+        let vttData = '';
+        if (isSRT) {
+          vttData = 'WEBVTT\n\n' + subsData
+            .replace(/\r\n|\r|\n/g, '\n')
+            .replace(/(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/g,
+              '$2.000 --> $3.000')
+            .replace(/,/g, '.');
+        }
+      
+        const blob = new Blob([vttData], { type: 'text/vtt' });
+        const url = URL.createObjectURL(blob);
+        const track = document.getElementById('sub');
+        track.src = url;
+        track.default = true;
+      });
  };
 
   const pumpNextSegment = async () => {
@@ -167,7 +168,7 @@ const startFilm = () => {
 }
   useEffect(() => {
     if(started) {
-      // initializeVideo();
+      initializeVideo();
       return cleanup
     }
   }, [started]);

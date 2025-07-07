@@ -9,6 +9,7 @@ async function getUser(req, reply) {
         const user = await collection.findOne({username: req.params.username});
         if (!user)
             return reply.status(404).send({error: "User doesn't exist"});
+        //if user is requesting its own profile include more info
         if (req.user.id === user._id.toString())
             return reply.status(200).send({username: user.username, email: user.email, name: user.name, surname: user.surname, picture: user.picture, language: user.language, password: ""});
         reply.status(200).send({username: user.username, name: user.name, surname: user.surname, picture: user.picture})
@@ -23,9 +24,10 @@ async function modifyInfo(req, reply) {
         const collection = this.mongo.db.collection('users');
         const id = new this.mongo.ObjectId(req.user.id);
         const user = await collection.findOne(id);
+        //Is valid password atleast one capital one small numbers and minimum of 7 char
         if (req.body.password && !passRegex.test(req.body.password))
             return reply.status(409).send({error: "new password not valid"})
-        
+
         if (req.body.username && await collection.findOne({username: req.body.username}))
             return reply.status(409).send({error: "username already in use"})
 
@@ -34,6 +36,7 @@ async function modifyInfo(req, reply) {
 
         if (req.body.email && await collection.findOne({email: req.body.email}))
             return reply.status(409).send({error: "email already in use"})
+        
         if (req.body.picture) {
             if (user.picture) {
                 const previousFileName = path.basename(user.picture);

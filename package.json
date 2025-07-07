@@ -19,6 +19,7 @@
     "bencode": "^4.0.0",
     "buffer": "^6.0.3",
     "crypto": "^1.0.1",
+    "decompress": "^4.2.1",
     "dgram": "^1.0.1",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",

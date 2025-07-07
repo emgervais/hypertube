@@ -1,42 +1,9 @@
 import bcrypt from 'bcrypt'
 import crypto from 'crypto'
+import { setToken, findUsername, sendMail, oauth42UserInfo } from '../utils/authUtils.js';
 
 
 const SALT_ROUNDS = 10
-
-async function setToken(id, username, reply, req) {
-    const payload = {
-        id: id,
-        username: username,
-    }
-    const refresh = req.jwt.sign(payload, {expiresIn: '7d'})
-    const token = req.jwt.sign(payload, {expiresIn: '2h'})
-    reply.header('Access-Control-Allow-Credentials', 'true');
-    reply.header('Access-Control-Allow-Origin', 'http://127.0.0.1:5173');
-    reply.setCookie('refreshToken', refresh, {
-        path: '/',
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-        maxAge: 7 * 24 * 60 * 60,
-    })
-    return token
-}
-
-async function findUsername(collection, given_name, family_name) {
-    let username = ''
-    for(let max_try = 0; max_try < 1000; ++max_try) {
-        for(let i = 0; i < given_name.length; ++i) {
-            username = (given_name.slice(0, i + 1) + family_name).slice(0, 8).toLowerCase();
-            if(!await collection.findOne({username: username}))
-                return username;
-        }
-        username = (given_name[0] + family_name).slice(0, 8).toLowerCase() + Math.floor(Math.random() * 1000);
-        if(!await collection.findOne({username: username}))
-            return username;
-    }
-    throw Error("Couldn't find a username");
-}
 
 async function register(req, reply) {
     const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{7,}$/;
@@ -51,9 +18,10 @@ async function register(req, reply) {
         const user = await collection.insertOne({...req.body, password: hash, picture: "http://localhost:8080/images/default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false, isAdmin: false, watchedMovie: []});
         login({body: {username: user.username, password: req.body.password}}, reply)
     } catch(e) {
-        reply.status(500).send(e);
+        reply.status(500).send({error: "Server error"});
     }  
 }
+
 async function login(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
@@ -65,7 +33,7 @@ async function login(req, reply) {
         const token = await setToken(user._id, user.username, reply, req);
         reply.status(200).send({username: user.username, accessToken: token});
     } catch(e) {
-        reply.status(500).send(e);
+        reply.status(500).send({error: "Server error"});
     }  
 }
 
@@ -75,7 +43,8 @@ async function logout(req, reply) {
         httpOnly: true,
         secure: false,
         sameSite: 'lax'
-    }).code(200).send({message: 'logout successfull'})
+    })
+    reply.status(200).send();
 }
 
 async function refresh(req, reply) {
@@ -110,14 +79,7 @@ async function forgot(req, reply) {
         const collection = this.mongo.db.collection('users');
         if(!await collection.findOne({email: email, isOauth: false}))
             return reply.status(200).send({message: 'If the email is correct, the mail as been sent'});
-        const token = crypto.randomBytes(4).toString('hex');
-        const expire = Date.now() + 5 * 60 * 1000;
-        await collection.findOneAndUpdate({"email": email, isOauth: false}, {$set: {"resetToken": token, "resetExpire": expire}});
-        await this.mailer.sendMail({
-            to: email,
-            subject: 'Password reset',
-            text: `Your confirmation code is ${token}`
-        })
+        sendMail(this.mailer, collection, email);
         reply.status(200).send({message: 'If the email is correct, the mail has been sent'});
     } catch(e) {
         console.log(e)
@@ -150,28 +112,7 @@ async function oauth42(req, reply) {
 
 async function oauth42Callback(req, reply) {
     try {
-        const form = new FormData();
-        form.append('grant_type', 'authorization_code');
-        form.append('client_id', process.env.S42_ID);
-        form.append('client_secret', process.env.S42_SECRET);
-        form.append('code', req.query.code);
-        form.append('redirect_uri', "http://127.0.0.1:8080/auth/42/callback");
-        form.append('state', req.query.state)
-        const tokenResponse = await fetch(`https://api.intra.42.fr/oauth/token`, {
-            method: 'POST',
-            body: form
-        })
-        const response = await tokenResponse.json();
-        if (response.error) {
-            throw new Error(response.error_description || 'OAuth token exchange failed');
-        }
-
-        const userInfoResponse = await fetch('https://api.intra.42.fr/v2/me', {
-            headers: { 
-                Authorization: `Bearer ${response.access_token}`
-            }
-        });
-        const userInfo = await userInfoResponse.json();
+        const userInfo = await oauth42UserInfo(req.query.code, req.query.state);
         const collection = this.mongo.db.collection('users');
         const user = await collection.findOne({email: userInfo.email, isOauth: true});
         let token, username;
@@ -205,15 +146,13 @@ async function oauth42Callback(req, reply) {
 }
 
 async function google(req, reply) {
-    this.googleOAuth2.generateAuthorizationUri(
-      req,
-      reply,
-      (err, authorizationEndpoint) => {
+    this.googleOAuth2.generateAuthorizationUri(req, reply, (err, authorizationEndpoint) => {
        if (err) console.error(err)
        reply.redirect(authorizationEndpoint)
       }
     );
-  }
+}
+
 async function oauthGoogleCallback (req, reply) {
     try {
       const tokenResponse = await this.googleOAuth2.getAccessTokenFromAuthorizationCodeFlow(req);
