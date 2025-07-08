@@ -250,16 +250,17 @@ async function stream(req, reply) {
         }
         let fragment = await getSegment(segmentIndex, folderPath, movie.isDownloaded);
         if(fragment === null) {
-            await mediaPipe(movie.bitBody.file, folderPath, id)
-            fragment = await getSegment(segmentIndex, folderPath, movie.isDownloaded);
-            if(fragment === null) {
-                console.log('Error Fragment can\'t be served yet');
-                return reply.status(503).header('Retry-After', 30).send();
-            }
+            console.log('Error Fragment can\'t be served yet');
+            reply.status(503).header('Retry-After', 30).send();
+            mediaPipe(movie.bitBody.file, folderPath, id);
+            // fragment = await getSegment(segmentIndex, folderPath, movie.isDownloaded);
+            // if(fragment === null) {
+            // }
+        } else {
+            if(segment * 4 >= movie.bitBody.length)
+                return reply.status(204).header('Content-Type', 'video/mp4').send(fragment)
+            return reply.status(200).header('Content-Type', 'video/mp4').send(fragment)
         }
-        if(segment * 4 >= movie.bitBody.length)
-            return reply.status(204).header('Content-Type', 'video/mp4').send(fragment)
-        return reply.status(200).header('Content-Type', 'video/mp4').send(fragment)
     } catch (e) {
        console.log(e)
        reply.status(500).send({error: 'Internal server error'})

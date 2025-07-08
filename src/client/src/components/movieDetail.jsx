@@ -33,6 +33,8 @@ export default function MovieDetail() {
             mediaSourceRef.current.duration = manifest.length;
           }
         }
+        console.log(index, nextSegmentIndex.current)
+        if(index !== -1 && index != nextSegmentIndex.current) return null;
         const res = await fetchWithAuth(`/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         if(res.status === 204) {
@@ -56,6 +58,7 @@ export default function MovieDetail() {
     const mediaSource = new MediaSource();
     mediaSourceRef.current = mediaSource;
     videoRef.current.src = URL.createObjectURL(mediaSource);
+
     videoRef.current.addEventListener('seeking', (event) => {
       const currTime =  Math.floor(videoRef.current.currentTime);
       const buffers = sourceBufferRef.current?.buffered;
@@ -69,6 +72,7 @@ export default function MovieDetail() {
       console.log('new segment: ', nextSegmentIndex.current)
       pumpNextSegment();
     });
+
     //init
     mediaSource.addEventListener('sourceopen', async () => {
       const initBuf = await fetchSegment(-1);
@@ -78,7 +82,7 @@ export default function MovieDetail() {
       sourceBufferRef.current.addEventListener('updateend', pumpNextSegment);
       sourceBufferRef.current.appendBuffer(initBuf);
     });
-    //clean only for when playback goes normally
+    //cleanup only when playback goes normally
     setInterval(() => {
       const buffers = sourceBufferRef.current?.buffered;
       if(!buffers) return;
@@ -125,6 +129,10 @@ export default function MovieDetail() {
     } 
     try {
       const buf = await fetchSegment(nextSegmentIndex.current);
+      if(!buf) {
+        pumpingFlag.current = false;
+        return pumpNextSegment();
+      }
       if(sourceBufferRef.current.updating || !sourceBufferRef.current) {
         pumpingFlag.current = false;
         return;
