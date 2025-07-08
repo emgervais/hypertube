@@ -3,14 +3,53 @@ import { useEffect, useRef, useState } from 'react';
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
 import Comments from './Comments.jsx'
 import MovieInfos from './MovieInfos.jsx'
-// import MP4Box from 'mp4box';
+
+function srt2webvtt(data) {
+  let srt = data.replace(/\r+/g, '');
+  srt = srt.trim();
+  srt = srt.replace(/<[a-zA-Z\/][^>]*>/g, '');
+
+  const cuelist = srt.split(/\n{2,}/);
+  let result = "WEBVTT\n\n";
+
+  for (let i = 0; i < cuelist.length; i++) {
+    const cue = convertSrtCue(cuelist[i]);
+    if (cue) result += cue;
+  }
+
+  return result;
+}
+
+function convertSrtCue(caption) {
+  const lines = caption.split('\n').filter(line => line.trim() !== '');
+  if (lines.length < 2) return '';
+
+  let indexOffset = 0;
+  let timeLine = lines[0];
+
+  if (!lines[0].includes('-->') && lines[1] && lines[1].includes('-->')) {
+    indexOffset = 1;
+    timeLine = lines[1];
+  }
+
+  const timeRegex = /(\d+):(\d+):(\d+),(\d+)\s*-->\s*(\d+):(\d+):(\d+),(\d+)/;
+  const match = timeLine.match(timeRegex);
+  if (!match) return '';
+
+  const vttTimestamp =
+    `${match[1].padStart(2, '0')}:${match[2].padStart(2, '0')}:${match[3].padStart(2, '0')}.${match[4].padStart(3, '0')} --> ` +
+    `${match[5].padStart(2, '0')}:${match[6].padStart(2, '0')}:${match[7].padStart(2, '0')}.${match[8].padStart(3, '0')}`;
+
+  const textLines = lines.slice(indexOffset + 1).join('\n');
+
+  return `${vttTimestamp}\n${textLines}\n\n`;
+}
 
 export default function MovieDetail() {
   const location = useLocation();
   const videoRef = useRef(null);
   const sourceBufferRef = useRef(null);
   const mediaSourceRef = useRef(null);
-  // const mp4boxFile = useRef(MP4Box.createFile());
   const nextSegmentIndex = useRef(0);
   const pumpingFlag = useRef(false);
   const Done = useRef(false);
@@ -33,7 +72,6 @@ export default function MovieDetail() {
             mediaSourceRef.current.duration = manifest.length;
           }
         }
-        console.log(index, nextSegmentIndex.current)
         if(index !== -1 && index != nextSegmentIndex.current) return null;
         const res = await fetchWithAuth(`/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -68,7 +106,7 @@ export default function MovieDetail() {
           if(!sourceBufferRef.current.updating)
             sourceBufferRef.current.remove(buffers.start(i), buffers.end(i));
       }
-      nextSegmentIndex.current = Math.floor(videoRef.current.currentTime / segmentSize);
+      nextSegmentIndex.current = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
       console.log('new segment: ', nextSegmentIndex.current)
       pumpNextSegment();
     });
@@ -100,16 +138,11 @@ export default function MovieDetail() {
       
         const subsData = new TextDecoder('utf-8').decode(new Uint8Array(subs.data.data));
       
+        let vttData = subsData;
         const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
-        let vttData = '';
         if (isSRT) {
-          vttData = 'WEBVTT\n\n' + subsData
-            .replace(/\r\n|\r|\n/g, '\n')
-            .replace(/(\d+)\n(\d{2}:\d{2}:\d{2},\d{3}) --> (\d{2}:\d{2}:\d{2},\d{3})/g,
-              '$2.000 --> $3.000')
-            .replace(/,/g, '.');
+          vttData = srt2webvtt(vttData);
         }
-      
         const blob = new Blob([vttData], { type: 'text/vtt' });
         const url = URL.createObjectURL(blob);
         const track = document.getElementById('sub');
@@ -145,6 +178,7 @@ export default function MovieDetail() {
       // }
 
       sourceBufferRef.current.appendBuffer(buf);
+      videoRef.current.play().catch(() => {});// try this
       nextSegmentIndex.current++;
       pumpingFlag.current = false;
     } catch(e) {

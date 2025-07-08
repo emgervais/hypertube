@@ -40,14 +40,13 @@ async function movieCreation(id, collection) {
 async function startDownload(movie, collection) {
     const bitInstance = new BitTorrentClient(movie.bitBody.torrentUrl, movie.bitBody.blocks, movie.bitBody.file);
     activeDownloads[movie.filmId] = {client: bitInstance, timeout: null, isFFmpeg: false}
-    // const filePath = await bitInstance.getPeers(movie.filmId);
+    const filePath = await bitInstance.getPeers(movie.filmId);
     if (movie.bitBody.file === null) {
         await collection.findOneAndUpdate({filmId: movie.filmId}, {$set: {"bitBody.file": filePath}});
     }
 }
 
 async function stopDownload(id, collection) {
-    // for(const [id, downloadInfo] of Object.entries(activeDownloads)) {
     const downloadInfo = activeDownloads[id];
     if (downloadInfo) {
         clearTimeout(downloadInfo.timeout);
@@ -62,7 +61,6 @@ async function stopDownload(id, collection) {
         console.log(e);
     }
     }
-    // }
 }
 
 async function manifest(req, reply) {
@@ -74,8 +72,8 @@ async function manifest(req, reply) {
         // torrentUrl: 'https://archive.org/download/BigBuckBunny_124/BigBuckBunny_124_archive.torrent',
         // file: null,
         // blocks: null,
-    // }});
-        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
+        // }});
+        await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
         const movie = await collection.findOne({filmId: id});
         if(!movie)
             return reply.status(404).send()
@@ -99,7 +97,7 @@ async function subtitle(req, reply) {
         const url = subs.get(userLanguage)
         if(!url)
             return reply.status(204).send()
-        const res = await fetch(url) //unzip
+        const res = await fetch(url)
         if(!res.ok)
             return reply.status(204).send()
         const zipBuffer = Buffer.from(await res.arrayBuffer());
@@ -159,25 +157,21 @@ async function getSegment(segmentIndex, folderPath, isDownloaded) {
                 return await readFile(initPath);
             }
             segmentIndex++;
-            // const nextSegmentPath = path.join(folderPath, 'segments', `segment-${segmentIndex + 1}.m4s`);
             if(!await fileExist(segmentPath) || !await isSegmentValid(initPath,segmentPath)) {
                 // console.log(`seg: ${fs.existsSync(segmentPath)}, next-seg: ${fs.existsSync(nextSegmentPath)}, is-valid: ${await isSegmentValid(initPath,segmentPath)}`)
                 throw Error('Downloading');
             }
             return await readFile(segmentPath);
         } catch(e) {
-            console.log(e);
+            // console.log(e);
             return null;
         }
 }
 async function mediaPipe(filePath, folderPath, id) {
     if(!activeDownloads[id] || activeDownloads[id]?.isFFmpeg) return;
     activeDownloads[id].isFFmpeg = true;
-    // const isMP4 = filePath.split('.')[1] === 'mp4'
-    // const tempFile = isMP4 ? filePath : path.join(folderPath, `${Math.random().toString(36).substring(2, 9)}.mp4`)
     const tempFile = path.join(folderPath, `${Math.random().toString(36).substring(2, 9)}.mp4`)
     try {
-        // if(!isMP4) {
             await new Promise((res, rej) => {
                 ffmpeg(filePath)
                 .outputOptions([
@@ -192,7 +186,6 @@ async function mediaPipe(filePath, folderPath, id) {
                 .on('end', res)
                 .on('error', (err) => rej(new Error(`ffmpeg failed: ${err.message}`)));
             });
-        // }
             await new Promise((res, rej) => {
                 const mp4box = spawn('MP4Box', [
                   '-dash', '4000',
@@ -203,7 +196,6 @@ async function mediaPipe(filePath, folderPath, id) {
                 ]);
                 mp4box.on('close', code => code === 0 ? res() : rej(new Error('mp4box failed')));
                 });
-            // if(!isMP4)
             await fs.promises.unlink(tempFile);
         } catch(e) {
             if(await fileExist(tempFile))
@@ -252,7 +244,7 @@ async function stream(req, reply) {
         if(fragment === null) {
             console.log('Error Fragment can\'t be served yet');
             reply.status(503).header('Retry-After', 30).send();
-            mediaPipe(movie.bitBody.file, folderPath, id);
+            await mediaPipe(movie.bitBody.file, folderPath, id);
             // fragment = await getSegment(segmentIndex, folderPath, movie.isDownloaded);
             // if(fragment === null) {
             // }
