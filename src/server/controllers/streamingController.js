@@ -66,14 +66,8 @@ async function stopDownload(id, collection) {
 async function manifest(req, reply) {
     const {id} = req.query;
     try {
-         const collection = this.mongo.db.collection('movies');
-        // await collection.insertOne({filmId: id, lastSeen: Date.now(), isDownloaded: false, bitBody: {
-        // length: 596,
-        // torrentUrl: 'https://archive.org/download/BigBuckBunny_124/BigBuckBunny_124_archive.torrent',
-        // file: null,
-        // blocks: null,
-        // }});
-        await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
+        const collection = this.mongo.db.collection('movies');
+        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
         const movie = await collection.findOne({filmId: id});
         if(!movie)
             return reply.status(404).send()
@@ -114,7 +108,7 @@ async function subtitle(req, reply) {
 }
 
 async function isSegmentValid(initPath, segmentPath=null) {
-    const tempFile = initPath.split('/').slice(0, -2).join('/') + `/${Math.random().toString(36).substring(2, 9)}.check.mp4`;
+    const tempFile = initPath.split('/').slice(0, -2).join('/') + `/check.mp4`;
     try {
         const init = await fs.promises.readFile(initPath);
         if(segmentPath) {
@@ -170,7 +164,7 @@ async function getSegment(segmentIndex, folderPath, isDownloaded) {
 async function mediaPipe(filePath, folderPath, id) {
     if(!activeDownloads[id] || activeDownloads[id]?.isFFmpeg) return;
     activeDownloads[id].isFFmpeg = true;
-    const tempFile = path.join(folderPath, `${Math.random().toString(36).substring(2, 9)}.mp4`)
+    const tempFile = path.join(folderPath, `temp.mp4`)
     try {
             await new Promise((res, rej) => {
                 ffmpeg(filePath)
@@ -245,9 +239,6 @@ async function stream(req, reply) {
             console.log('Error Fragment can\'t be served yet');
             reply.status(503).header('Retry-After', 30).send();
             await mediaPipe(movie.bitBody.file, folderPath, id);
-            // fragment = await getSegment(segmentIndex, folderPath, movie.isDownloaded);
-            // if(fragment === null) {
-            // }
         } else {
             if(segment * 4 >= movie.bitBody.length)
                 return reply.status(204).header('Content-Type', 'video/mp4').send(fragment)

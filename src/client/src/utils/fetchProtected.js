@@ -12,7 +12,7 @@ export const createAuthenticatedFetcher = (accessToken, login, navigate) => {
     
     if (res.ok) {
       const data = await res.json();
-      login(data.accessToken);
+      login(data.accessToken, data.username);
       return data.accessToken;
     } else {
       navigate('/login');

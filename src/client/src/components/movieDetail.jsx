@@ -171,12 +171,6 @@ export default function MovieDetail() {
         return;
       }
 
-      // for (let i = 0; i < sourceBufferRef.current.buffered.length; i++) {
-      //   const start = sourceBufferRef.current.buffered.start(i);
-      //   const end = sourceBufferRef.current.buffered.end(i);
-      //   console.log(`Buffered range ${i}: ${start.toFixed(2)} - ${end.toFixed(2)}`);
-      // }
-
       sourceBufferRef.current.appendBuffer(buf);
       videoRef.current.play().catch(() => {});// try this
       nextSegmentIndex.current++;
