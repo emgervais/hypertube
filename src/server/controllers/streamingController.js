@@ -51,12 +51,13 @@ async function stopDownload(id, collection) {
     if (downloadInfo) {
         clearTimeout(downloadInfo.timeout);
      try {
-         let blocks = await downloadInfo.client.stop();
-         const isDone = blocks.every(i=>i.every(j=>j));
-         if(isDone)
-            blocks = null;
-         await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": blocks, "isDownloaded": isDone}})
-         delete activeDownloads[id];
+        let blocks = await downloadInfo.client.stop();
+        const isDone = blocks.every(i=>i.every(j=>j));
+        if(isDone)
+           blocks = null;
+        await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": blocks, "isDownloaded": isDone}})
+
+        delete activeDownloads[id];
     } catch (e) {
         console.log(e);
     }
@@ -67,7 +68,7 @@ async function manifest(req, reply) {
     const {id} = req.query;
     try {
         const collection = this.mongo.db.collection('movies');
-        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null}});
+        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null, "isDownloaded": false}});
         const movie = await collection.findOne({filmId: id});
         if(!movie)
             return reply.status(404).send()
@@ -127,7 +128,8 @@ async function isSegmentValid(initPath, segmentPath=null) {
             ffprobe.on('close', (code) => resolve({ status: code }));
             ffprobe.on('error', (err) => reject(err));
         });
-        await fs.promises.unlink(tempFile);
+        if(await fileExist(tempFile))
+            await fs.promises.unlink(tempFile);
         return result.status === 0;
     } catch(e) {
         if(await fileExist(tempFile))

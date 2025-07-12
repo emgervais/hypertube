@@ -10,14 +10,13 @@ export const createAuthenticatedFetcher = (accessToken, login, navigate) => {
       credentials: 'include'
     });
     
-    if (res.ok) {
-      const data = await res.json();
-      login(data.accessToken, data.username);
-      return data.accessToken;
-    } else {
+    if (!res.ok) {
       navigate('/login');
       return null;
     }
+    const data = await res.json();
+    login(data.accessToken, data.username);
+    return data.accessToken;
   };
 
   const fetchWithAuth = async (url, options = {}) => {

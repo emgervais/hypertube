@@ -1,8 +1,22 @@
 test more streaming
 mobile
 retest whole features
-broken download restart file seems corrupted
+
 pause random moment have to move the playback to relaunch it but problem very ponctual
+
+
+cleanup
+------------------------
+bittorrent
+streamingcontroller
+
+
+
+
+
+
+
+
 Bonus
 -----------------------
 manage playback
@@ -10,8 +24,3 @@ mediasource
 more routes (admin routes)
 offer account deletion
 starting download where it left off
-
-cleanup
-------------------------
-bittorrent
-streamingcontroller

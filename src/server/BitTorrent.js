@@ -24,6 +24,7 @@ export default class BitTorrentClient {
     if (received) {
       this.receivedPieces = received;
       this.requestedPieces = received.map(piece => piece[0] === true ? new Array(piece.length).fill(true): new Array(piece.length).fill(false));
+      // console.log(this.requestedPieces);
   } else {
       this.receivedPieces = null;
       this.requestedPieces = null;
@@ -149,7 +150,7 @@ export default class BitTorrentClient {
       fs.mkdirSync(folderPath, { recursive: true });
     if (!fs.existsSync(filePath))
       fs.closeSync(fs.openSync(filePath, 'w'));
-    this.fileFd = fs.openSync(filePath, 'w+');
+    this.fileFd = fs.openSync(filePath, 'r+');
     this.fileLength = this.torrent.info.files ? this.findOffsetAndTotal(name): this.torrent.info.length;
     this.totalPieces = Math.ceil(this.fileLength / this.torrent.info['piece length']);
     if (this.receivedPieces === null) {
@@ -490,7 +491,7 @@ export default class BitTorrentClient {
         this.receivedPieces[pieceIndex].fill(false);
       } else {
         console.log(`writing piece ${pieceIndex} at ${offset} with a length of ${fullPiece.length} next piece should start at ${offset + fullPiece.length}`)
-        fs.write(this.fileFd, fullPiece, 0, fullPiece.length, offset, () => {});
+        fs.writeSync(this.fileFd, fullPiece, 0, fullPiece.length, offset, () => {});
         this.receivedPieces[pieceIndex].fill(true);
       }
     }
@@ -562,10 +563,10 @@ export default class BitTorrentClient {
   }
   async stop() {
     this.isDownloading = false;
+    fs.closeSync(this.fileFd);
     for(const [id, peer] of Object.entries(this.peersList)) {
       peer.socket.destroy();
     }
-    
     return this.receivedPieces.map((piece) => piece.every(i=>i) ? piece : new Array(piece.length).fill(false));
   }
 }

@@ -19,6 +19,7 @@ export function AuthProvider({ children }) {
   }, [accessToken, username]);
 
   const login = (token, username) => {
+    console.log(token, username)
     setAccessToken(token);
     setUsername(username);
   };

@@ -1,0 +1,10 @@
+
+> hypertube@1.0.0 dev-srv
+> nodemon ./src/server/index.js --dev
+
+[33m[nodemon] 3.1.9[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node ./src/server/index.js --dev`[39m
+2025-07-11 18:00:21.669+0200 - info - Server listening at http://127.0.0.1:8080

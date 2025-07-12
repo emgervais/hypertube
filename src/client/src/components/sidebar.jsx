@@ -4,7 +4,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 
 export default function Sidebar() {
     const {accessToken, username, logout} = useAuth();
-    console.log('Sidebar:', { accessToken, username })
     const navigate = useNavigate()
     const handleLogout = () => {
         logout();

@@ -53,13 +53,14 @@ export default function MovieDetail() {
   const nextSegmentIndex = useRef(0);
   const pumpingFlag = useRef(false);
   const Done = useRef(false);
+  const waiting = useRef(false);
   const [started, setStarted] = useState(false)
   const fetchWithAuth = useFetchWithAuth();
   const segmentSize = 4;
 
   const fetchSegment = async (index) => {
     let retries = 0;
-    while (retries < 10) {
+    while (retries < 20) {
       try {
         if(index === -1) {
           const res = await fetchWithAuth(`/stream/manifest?id=${location.state.movie.id}`);
@@ -110,7 +111,9 @@ export default function MovieDetail() {
       console.log('new segment: ', nextSegmentIndex.current)
       pumpNextSegment();
     });
-
+    videoRef.current.addEventListener('waiting', () => {
+      waiting.current = true;
+    });
     //init
     mediaSource.addEventListener('sourceopen', async () => {
       const initBuf = await fetchSegment(-1);
@@ -134,7 +137,12 @@ export default function MovieDetail() {
     //subtitles
     fetchWithAuth(`/stream/subtitle/${location.state.movie.id}`)
       .then(async res => {
-        let subs = await res.json();
+        const track = document.getElementById('sub');
+        const subs = await res.json();
+        if(!subs.ok) {
+          track.remove()
+          return;
+        }
       
         const subsData = new TextDecoder('utf-8').decode(new Uint8Array(subs.data.data));
       
@@ -145,7 +153,6 @@ export default function MovieDetail() {
         }
         const blob = new Blob([vttData], { type: 'text/vtt' });
         const url = URL.createObjectURL(blob);
-        const track = document.getElementById('sub');
         track.src = url;
         track.default = true;
       });
@@ -172,7 +179,20 @@ export default function MovieDetail() {
       }
 
       sourceBufferRef.current.appendBuffer(buf);
-      videoRef.current.play().catch(() => {});// try this
+      setTimeout(() => {
+        const buffers = sourceBufferRef.current?.buffered;
+        if (buffers) {
+          for (let i = 0; i < buffers.length; i++) {
+            if (videoRef.current.currentTime >= buffers.start(i) && videoRef.current.currentTime <= buffers.end(i)) {
+              if (waiting.current === true) {
+                videoRef.current.currentTime += 0.01;
+                waiting.current = false;
+              }
+              break;
+            }
+          }
+        }
+      }, 300);
       nextSegmentIndex.current++;
       pumpingFlag.current = false;
     } catch(e) {
