@@ -98,7 +98,7 @@ export default function MovieDetail() {
     mediaSourceRef.current = mediaSource;
     videoRef.current.src = URL.createObjectURL(mediaSource);
 
-    videoRef.current.addEventListener('seeking', (event) => {
+    videoRef.current.addEventListener('seeking', () => {
       const currTime =  Math.floor(videoRef.current.currentTime);
       const buffers = sourceBufferRef.current?.buffered;
       if(!buffers) return;
@@ -111,17 +111,23 @@ export default function MovieDetail() {
       console.log('new segment: ', nextSegmentIndex.current)
       pumpNextSegment();
     });
-    videoRef.current.addEventListener('waiting', () => {
+    videoRef.current.addEventListener('waiting', async () => {
       waiting.current = true;
     });
     //init
     mediaSource.addEventListener('sourceopen', async () => {
       const initBuf = await fetchSegment(-1);
       const mime = `video/mp4; codecs="avc1.64001F, mp4a.40.2"`;
-      const sb = mediaSourceRef.current.addSourceBuffer(mime);
-      sourceBufferRef.current = sb;
-      sourceBufferRef.current.addEventListener('updateend', pumpNextSegment);
+      sourceBufferRef.current = mediaSourceRef.current.addSourceBuffer(mime);
       sourceBufferRef.current.appendBuffer(initBuf);
+      sourceBufferRef.current.addEventListener('updateend', () => {
+        if(waiting.current === true) {
+          waiting.current = false;
+          videoRef.current.currentTime += 0.01;
+        } else {
+          pumpNextSegment();
+        }
+      });
     });
     //cleanup only when playback goes normally
     setInterval(() => {
@@ -138,23 +144,25 @@ export default function MovieDetail() {
     fetchWithAuth(`/stream/subtitle/${location.state.movie.id}`)
       .then(async res => {
         const track = document.getElementById('sub');
-        const subs = await res.json();
-        if(!subs.ok) {
+        try {
+          const subs = await res.json();
+          const subsData = new TextDecoder('utf-8').decode(new Uint8Array(subs.data.data));
+        
+          let vttData = subsData;
+          const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
+          if (isSRT) {
+            vttData = srt2webvtt(vttData);
+          }
+          const blob = new Blob([vttData], { type: 'text/vtt' });
+          const url = URL.createObjectURL(blob);
+          track.src = url;
+          track.default = true;
+        }
+        catch(e) {
           track.remove()
           return;
         }
-      
-        const subsData = new TextDecoder('utf-8').decode(new Uint8Array(subs.data.data));
-      
-        let vttData = subsData;
-        const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
-        if (isSRT) {
-          vttData = srt2webvtt(vttData);
-        }
-        const blob = new Blob([vttData], { type: 'text/vtt' });
-        const url = URL.createObjectURL(blob);
-        track.src = url;
-        track.default = true;
+    
       });
  };
 
@@ -163,36 +171,22 @@ export default function MovieDetail() {
     pumpingFlag.current = true;
     const currentPiece = Math.floor(videoRef.current.currentTime / segmentSize) - 1;
     if(nextSegmentIndex.current - currentPiece >= 20) {
-      console.log(`playback ${videoRef.current.currentTime} `+'total buffeer:', nextSegmentIndex.current - currentPiece);
       pumpingFlag.current = false;
       return;
     } 
     try {
+      if(sourceBufferRef.current.updating || !sourceBufferRef.current) {
+        pumpingFlag.current = false;
+        setTimeout(pumpNextSegment, 100);
+        return;
+      }
       const buf = await fetchSegment(nextSegmentIndex.current);
       if(!buf) {
         pumpingFlag.current = false;
-        return pumpNextSegment();
-      }
-      if(sourceBufferRef.current.updating || !sourceBufferRef.current) {
-        pumpingFlag.current = false;
+        setTimeout(pumpNextSegment, 1000);
         return;
       }
-
       sourceBufferRef.current.appendBuffer(buf);
-      setTimeout(() => {
-        const buffers = sourceBufferRef.current?.buffered;
-        if (buffers) {
-          for (let i = 0; i < buffers.length; i++) {
-            if (videoRef.current.currentTime >= buffers.start(i) && videoRef.current.currentTime <= buffers.end(i)) {
-              if (waiting.current === true) {
-                videoRef.current.currentTime += 0.01;
-                waiting.current = false;
-              }
-              break;
-            }
-          }
-        }
-      }, 300);
       nextSegmentIndex.current++;
       pumpingFlag.current = false;
     } catch(e) {

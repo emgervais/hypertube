@@ -47,7 +47,7 @@ async function addMovie(req, reply) {
     try {
         const collection = this.mongo.db.collection('movies');
         await collection.insertOne({filmId: req.body.id, lastSeen: req.body.lastSeen || Date.now(), isDownloaded: req.body.isDownloaded || false, subtitles: [], bitBody: {
-        length: req.body.runtime * 60,
+        length: req.body.runtime,
         torrentUrl: req.body.torrentUrl,
         file: req.body.file || null,
         blocks: null,

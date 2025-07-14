@@ -2,24 +2,11 @@ import { createContext, useState, useContext, useEffect } from 'react';
 
 const AuthContext = createContext(null);
 
-const persistItem = (key, value) => {
-  if (value) {
-      localStorage.setItem(key, value);
-  } else {
-      localStorage.removeItem(key);
-  }
-};
-
 export function AuthProvider({ children }) {
-  const [accessToken, setAccessToken] = useState(localStorage.getItem('accessToken') || null);
-  const [username, setUsername] = useState(localStorage.getItem('username') || null);
-  useEffect(() => {
-    persistItem('accessToken', accessToken);
-    persistItem('username', username);
-  }, [accessToken, username]);
+  const [accessToken, setAccessToken] = useState(null);
+  const [username, setUsername] = useState(null);
 
   const login = (token, username) => {
-    console.log(token, username)
     setAccessToken(token);
     setUsername(username);
   };

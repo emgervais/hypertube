@@ -1,9 +1,7 @@
-test more streaming
 mobile
 retest whole features
-
-pause random moment have to move the playback to relaunch it but problem very ponctual
-
+dockers
+scrolling is wrong
 
 cleanup
 ------------------------
@@ -16,11 +14,11 @@ streamingcontroller
 
 
 
+offer account deletion
 
 Bonus
 -----------------------
 manage playback
 mediasource
 more routes (admin routes)
-offer account deletion
 starting download where it left off
