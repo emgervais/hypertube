@@ -225,7 +225,7 @@ const startFilm = () => {
 
   return (<div className='grow-5 m-10 flex flex-col justify-between items-center'>
     <MovieInfos id={location.state.movie.id} title={location.state.movie.title} year={location.state.movie.year} runtime={location.state.movie.runtime} rating={location.state.movie.rating} />
-    <div className='w-2/3'>
+    <div className={started? 'm-3 w-2/3': 'm-3 w-5/7 md:w-1/3'}>
     {started? 
     <video className="w-full" ref={videoRef} onError={console.log} controls>
       <track id="sub" kind="subtitles" />

@@ -47,7 +47,7 @@ export default function Register() {
             </h2>
           </div>
   
-          <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="m-5 md:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
             {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
             <form onSubmit={handleSubmit} className="space-y-6">
             <div >
@@ -129,9 +129,12 @@ export default function Register() {
                 </div>
               </div>
   
-              <div>
-              handleSearch
-              </div>
+              <button
+                type="submit"
+                className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500"
+              >
+                Sign up
+              </button>
             </form>
   
             <p className="mt-10 text-center text-sm/6 text-gray-500">

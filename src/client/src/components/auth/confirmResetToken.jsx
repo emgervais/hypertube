@@ -35,13 +35,7 @@ export default function ConfirmResetToken() {
     return (
       <>
         <div className="flex min-h-full flex-1 flex-col justify-center grow-5" style={{width: '50vw'}}>
-          <div className="sm:mx-auto sm:w-full sm:max-w-md">
-            <h2 className="mt-10 text-center text-2xl/9 font-bold tracking-tight text-white-900">
-              Confirm password reset code
-            </h2>
-          </div>
-  
-          <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="m-5 md:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
           {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div >

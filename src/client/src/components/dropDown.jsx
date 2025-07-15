@@ -1,7 +1,7 @@
 import { Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react'
 import { useState } from 'react';
 
-export default function DropDown({reset, setFilters, main, options}) {
+export default function DropDown({position, reset, setFilters, main, options}) {
   const [active, setActive] = useState(null);
   const handleFilter = (option, event) => {
     event.preventDefault();
@@ -28,7 +28,12 @@ export default function DropDown({reset, setFilters, main, options}) {
           {main}
         </MenuButton>
 
-        <MenuItems transition  className="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-xl bg-zinc-800 shadow-xl ring-1 ring-zinc-700 focus:outline-none data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[enter]:ease-out data-[leave]:duration-75 data-[leave]:ease-in">
+        <MenuItems
+          transition
+          className={`absolute z-10 mt-2 w-56 origin-top-right rounded-xl bg-zinc-800 shadow-xl ring-1 ring-zinc-700 focus:outline-none
+            ${position === "left" ? "left-0" : "right-0"}
+            data-[closed]:scale-95 data-[closed]:transform data-[closed]:opacity-0 data-[enter]:duration-100 data-[enter]:ease-out data-[leave]:duration-75 data-[leave]:ease-in`}
+        >
           <div className="py-1">
             {options.map((option) => (
               <MenuItem key={option} >

@@ -9,7 +9,7 @@ export default function MovieCard({movie, isWatched}) {
   onClick={() => navigate('/movie', { state: { movie: movie } })}
 >
   <div className="relative group w-full px-2">
-    <h4 className="font-bold pb-1 text-center text-gray-200 truncate">
+    <h4 className="font-bold pb-1 text-center text-gray-200 truncate text-xs md:text-lg">
       {movie.title}
     </h4>
 

@@ -45,7 +45,7 @@ export default function ResetPassword() {
             </h2>
           </div>
   
-          <div className="mt-10 sm:mx-auto sm:w-full sm:max-w-md">
+          <div className="m-5 md:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
           {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
             <form onSubmit={handleSubmit} className="space-y-6">
               <div >

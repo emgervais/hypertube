@@ -59,7 +59,7 @@ function EditableField({ fieldKey, initialValue, activeField, accountActions, is
     return (
         <li className='max-w-sm'>
             <form className="flex items-center justify-between" onSubmit={handleSubmit}>
-                <label className='' htmlFor={fieldKey}>{fieldKey}: </label>
+                <label className='text-xs md:text-lg min-w-16' htmlFor={fieldKey}>{fieldKey}: </label>
                 <div className='flex'>
                 <input
                     ref={inputRef}
@@ -71,7 +71,7 @@ function EditableField({ fieldKey, initialValue, activeField, accountActions, is
                     onChange={(e) => setValue(e.target.value)}
                     onKeyDown={(e) => { if(e.key === 'Enter') {handleSubmit(e);}}}
                     required
-                    className={`border-solid border-1 border-inherit rounded-md text-center ${editing ? "text-white border-white" : "text-white/50 border-inherit" }`}
+                    className={`border-solid border-1 text-xs md:text-lg border-inherit rounded-md text-center ${editing ? "text-white border-white" : "text-white/50 border-inherit" }`}
                 />
                 {isOwn ?
                 editing ? (
@@ -158,14 +158,14 @@ export default function Account() {
         </form>
     </header>
     <main className='flex w-full h-full justify-center mt-10 flex-col items-center'>
-        <div className='flex h-50 flex-col grow-1 max-w-75'>
-            {userData.picture === "default.png" ? <RamProfile className="rounded-full border-solid border-indigo-600 border-2 p-2"/> : <img src={userData.picture} className='rounded-full border-solid border-indigo-600 border-2 w-xs'></img>}
+        <div className='flex flex-col max-w-50 md:max-w-75 relative'>
+            {userData.picture === "default.png" ? <RamProfile className="rounded-full border-solid border-indigo-600 border-2 p-2"/> : <img src={userData.picture} className='rounded-full border-solid border-indigo-600 border-2 w-fit max-h-full'></img>}
             {userData.username === username && (
-                <div className='flex justify-end'>
+                <div className='absolute bottom-[-0.5rem] right-[-0.5rem] flex justify-end'>
                     <button
                         type="button"
                         onClick={() => fileInputRef.current.click()}
-                        className="border-solid border-indigo-600 bg-indigo-600 hover:bg-indigo-500 border p-2 ml-1 rounded-md"
+                        className="border-solid border-indigo-600 bg-indigo-600 hover:bg-indigo-500 border p-1 md:p-2 rounded-lg"
                     >
                         <Pencil />
                     </button>
@@ -179,7 +179,7 @@ export default function Account() {
                 )}
         </div>
         <div className='flex grow-2 justify-center  w-full flex-col items-center'>
-            <div className='max-w-1/2 flex justify-center mb-10'>
+            <div className='md:max-w-1/2 flex justify-center mt-5 mb-5 md:mb-10'>
                 {error && <Error message={error}/>}
             </div>
             <ul className='grid grid-cols-1 gap-10 lg:grid-cols-2 lg:w-8/10 max-w-3xl'>

@@ -29,7 +29,7 @@ export default function Comments({id}) {
         event.target.reset();
     }
     return (
-        <div className="bg-red w-full h-1/4">
+        <div className="bg-red w-full h-1/4 text-xs md:text-lg">
             <div className="flex flex-col-reverse max-h-full overflow-y-scroll">
             {comments.map((comment) => {
                 return (<div key={comment._id} className="">
