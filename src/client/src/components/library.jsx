@@ -7,9 +7,11 @@ function useInfiniteScroll(callback, offset = 300) {
     const handleScroll = useCallback(() => {
       const scrollY = window.scrollY;
       const visible = window.innerHeight;
-      const pageHeight = document.body.offsetHeight;
+      const pageHeight = document.getElementsByTagName('main')[0].offsetHeight;
+
+      console.log(scrollY, pageHeight - visible - offset);
   
-      if (scrollY + visible >= pageHeight - offset) {
+      if (scrollY >= pageHeight - visible - offset) {
         callback();
       }
     }, [callback, offset]);
@@ -27,21 +29,20 @@ export default function Library() {
     const [filters, setFilters] = useState({sort: "download_count", page: 1});
     const [watched, setWatched] = useState([]);
     const fetchProtected = useFetchWithAuth();
-
     const resetList = () => {
-        setDone(false);
-        setMovieList([]);
+      setDone(false);
+      setMovieList([]);
     }
-  const fetchMore = () => {
-    if (loading) return;
-    setLoading(true);
-    setTimeout(() => {
-      setFilters({...filters, page: filters.page + 1});
-      setLoading(false);
-    }, 1000);
-  };
-
+    const fetchMore = () => {
+      if (loading) return;
+      setLoading(true);
+      setTimeout(() => {
+        setFilters({...filters, page: filters.page + 1});
+        setLoading(false);
+      }, 1000);
+    };
     useInfiniteScroll(fetchMore);
+
 
     const handleSearch = async (event) => {
         event.preventDefault();
@@ -56,7 +57,7 @@ export default function Library() {
             const watched = await res.json();
             setWatched(watched);
         }
-        init();
+        init()
     }, []);
 
     useEffect(() => {
