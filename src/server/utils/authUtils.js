@@ -1,3 +1,5 @@
+import crypto from 'crypto'
+
 export async function setToken(id, username, reply, req) {
     const payload = {
         id: id,
@@ -35,7 +37,7 @@ export async function findUsername(collection, given_name, family_name) {
 export async function sendMail(mailer, collection, email) {
     const token = crypto.randomBytes(4).toString('hex');
     const expire = Date.now() + 5 * 60 * 1000;
-    await collection.findOneAndUpdate({"email": email, isOauth: false}, {$set: {"resetToken": token, "resetExpire": expire}});
+    await collection.findOneAndUpdate({"email": email}, {$set: {"resetToken": token, "resetExpire": expire}});
     await mailer.sendMail({
         to: email,
         subject: 'Password reset',

@@ -1,5 +1,5 @@
 import activeDownloads from '../plugin/activeDownloads.js'
-import BitTorrentClient from '../BitTorrent.js';
+import BitTorrentClient from '../bittorrent/BitTorrent.js';
 import decompress from 'decompress'
 import { findMovie } from '../utils/apiUtils.js';
 import fs from 'fs'

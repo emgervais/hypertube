@@ -13,7 +13,7 @@ const loginSchema = S.object()
     .prop('password', S.string().required())
 const resetSchema = S.object()
     .prop('token', S.string().required())
-    .prop('password', S.string().required())
+    .prop('password', S.string())
 
 const forgotSchema = S.object()
     .prop('email', S.string().required())

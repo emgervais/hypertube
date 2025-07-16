@@ -3,7 +3,7 @@ import adminController from '../controllers/adminController.js'
 import {oneParamValidation, addMovieValidation} from '../schema/apiSchema.js'
 
 async function adminRoutes (fastify, options) {
-    fastify.delete('/delete/:id', {preHandler: [fastify.authenticate, adminAuth], schema: oneParamValidation}, adminController.deleteUser);
+    fastify.delete('/user/:id', {preHandler: [fastify.authenticate, adminAuth], schema: oneParamValidation}, adminController.deleteUser);
     fastify.delete('/movie/:id', {preHandler: [fastify.authenticate, adminAuth], schema: oneParamValidation},  adminController.deleteMovie);
     fastify.get('/allMovies', {preHandler: [fastify.authenticate, adminAuth]},  adminController.getAllMovies);
     fastify.get('/users', {preHandler: [fastify.authenticate, adminAuth]}, adminController.getUsers);

@@ -77,8 +77,10 @@ async function forgot(req, reply) {
     const email = req.body.email;
     try {
         const collection = this.mongo.db.collection('users');
-        if(!await collection.findOne({email: email, isOauth: false}))
+        if(!await collection.findOne({email: email, isOauth: false})) {
+            console.error("Account not found")
             return reply.status(200).send({message: 'If the email is correct, the mail as been sent'});
+        }
         sendMail(this.mailer, collection, email);
         reply.status(200).send({message: 'If the email is correct, the mail has been sent'});
     } catch(e) {
@@ -91,7 +93,7 @@ async function reset(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
         const user = await collection.findOne({resetToken: req.body.token})
-        if(!user || user.expire < Date.now())
+        if(!user || Date.now() > user.resetExpire)
             return reply.status(401).send({error: "Wrong reset token or expired token. Please resend an email."})
         if(!req.body.password) {
             return reply.status(200).send({message: "Token is valid"})
