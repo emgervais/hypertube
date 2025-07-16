@@ -44,7 +44,7 @@ export async function movieCreation(id, collection) {
 export async function startDownload(movie, collection) {
     const bitInstance = new BitTorrentClient(movie.bitBody.torrentUrl, movie.bitBody.blocks, movie.bitBody.file);
     activeDownloads[movie.filmId] = {client: bitInstance, timeout: null, isFFmpeg: false}
-    const filePath = await bitInstance.getPeers(movie.filmId);
+    const filePath = await bitInstance.initClient(movie.filmId);
     if (movie.bitBody.file === null) {
         await collection.findOneAndUpdate({filmId: movie.filmId}, {$set: {"bitBody.file": filePath}});
     }
