@@ -29,6 +29,12 @@ export default class BitRequests {
     return peerId
   }
 
+  percentEncode(buffer) {
+    return Array.from(buffer)
+      .map(b => `%${b.toString(16).padStart(2, '0')}`)
+      .join('');
+  }
+
   // --------------------build------------------
   buildConnReq() {
     const buf = Buffer.alloc(16)
@@ -83,6 +89,20 @@ export default class BitRequests {
     b.writeUInt32BE(begin,9)
     b.writeUInt32BE(length,13)
     return b
+  }
+
+  buildHttpRequest() {
+    const query =
+    `info_hash=${this.percentEncode(this.infoHash())}`+
+    `&peer_id=${this.percentEncode(this.peer_id)}`+
+    `&port=6881`+
+    `&uploaded=0`+
+    `&downloaded=0`+
+    `&left=${this.size().toString('hex')}`+
+    `&compact=1`+
+    `&event=started`;
+
+    return query;
   }
   
   //------------------parse--------------------

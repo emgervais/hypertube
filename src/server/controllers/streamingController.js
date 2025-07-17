@@ -7,7 +7,7 @@ async function manifest(req, reply) {
     const {id} = req.query;
     try {
         const collection = this.mongo.db.collection('movies');
-        await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null, "isDownloaded": false}});
+        // await collection.findOneAndUpdate({filmId: id}, {$set: {"bitBody.blocks": null, "isDownloaded": false}});
         const movie = await collection.findOne({filmId: id});
         if(!movie)
             return reply.status(404).send()
