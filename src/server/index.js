@@ -5,6 +5,7 @@ import db from "@fastify/mongodb"
 import oauthPlugin from '@fastify/oauth2'
 import fastifySwagger from '@fastify/swagger'
 import fastifySwaggerUI from '@fastify/swagger-ui'
+import fastifyStatic from '@fastify/static'
 import dotenv from 'dotenv'
 import Fastify from "fastify"
 import mailerPlugin from 'fastify-mailer'
@@ -51,7 +52,7 @@ const fastify = Fastify({
 .register(fjwt, { secret: process.env.JWT_SECRET})
 //fucking cors
 .register(cors, { 
-  origin: ['http://127.0.0.1:5173'], 
+  origin: ['http://127.0.0.1:5173', 'http://127.0.0.1:8080'], 
   credentials: true, 
   methods: "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS", 
   allowedHeaders: ["Content-Type,Authorization",'Range'],
@@ -111,11 +112,28 @@ const fastify = Fastify({
 .register(adminRoutes, {prefix: '/admin'})
 .register(streamingRoutes, {prefix: '/stream'})
 //middleware for auth plugin
-.decorate('authenticate', auth)
 //to serv assets
-.register(import('@fastify/static'), {
-  root: path.join(process.cwd(), "src", "server", "assets"),
+// .register(fastifyStatic, {
+  //   root: path.join(process.cwd(), "src", "server", "assets"),
+  //   prefix: '/images/',
+  // })
+.decorate('authenticate', auth)
+.register(fastifyStatic, {
+  root: path.join(process.cwd(), 'src', 'client', 'dist'),
+  prefix: '/', // serve at root
+  wildcard: false,
+  index: 'index.html'
+})
+.register(fastifyStatic, {
+  root: path.join(process.cwd(), 'src', 'server', 'assets'),
   prefix: '/images/',
+  decorateReply: false
+})
+.setNotFoundHandler((req, reply) => {
+  if (req.raw.method === 'GET' && !req.raw.url.startsWith('/api') && !req.raw.url.startsWith('/auth') && !req.raw.url.startsWith('/user') && !req.raw.url.startsWith('/admin') && !req.raw.url.startsWith('/stream') && !req.raw.url.startsWith('/images')) {
+    return reply.sendFile('index.html')
+  }
+  reply.status(404).send({ error: 'Not found' })
 })
 //setup db
 fastify.after(() => {
@@ -164,7 +182,7 @@ fastify.get("/images/:name", (req, reply) => {
   if (!/^[a-zA-Z0-9\-]+\.((jpg)|(jpeg)|(png)|(gif))$/.test(name)) {
     return reply.status(400).send({ error: "Invalid file name" });
   }
-  reply.sendFile(name);
+  reply.sendFile(name, path.join(process.cwd(), 'src', 'server', 'assets'));
 });
 
 async function main() {

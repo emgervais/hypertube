@@ -11,3 +11,4 @@ film
 *.webm
 src/server/movies/*
 test
+dist
