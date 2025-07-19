@@ -1,5 +1,6 @@
 import bencode from 'bencode'
 import crypto from 'crypto'
+import { matchesGlob } from 'path';
 
 export default class BitRequests {
   constructor() {
@@ -103,6 +104,16 @@ export default class BitRequests {
     `&event=started`;
 
     return query;
+  }
+
+  buildRequestAnswer(length, begin, buf) {
+    const b = Buffer.alloc(13 + length);
+		b.writeUInt32BE(9 + length, 0); 
+		b.writeUInt8(7, 4);
+		b.writeUInt32BE(index, 5);
+		b.writeUInt32BE(begin, 9);
+		buf.copy(b, 13);
+    return b;
   }
   
   //------------------parse--------------------

@@ -10,9 +10,11 @@ export default function Comments({id}) {
         const commentsList = await res.json();
         setComments(commentsList);
     }
+
     useEffect(() => {
         fetchComments();
     }, [])
+
     const sendComment = async (event) => {
         event.preventDefault();
         const comment = event.target.sendComments.value;
@@ -28,6 +30,7 @@ export default function Comments({id}) {
         fetchComments();
         event.target.reset();
     }
+    
     return (
         <div className="bg-red w-full h-1/4 text-xs md:text-lg">
             <div className="flex flex-col-reverse max-h-full overflow-y-scroll">

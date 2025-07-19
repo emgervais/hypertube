@@ -18,6 +18,20 @@ async function getUser(req, reply) {
     }
 }
 
+async function deleteUser(req, reply) {
+    try {
+        const collection = this.mongo.db.collection('users');
+        const id = new this.mongo.ObjectId(req.user.id);
+        const user = await collection.findOneAndDelete({_id: id});
+        if (!user)
+            return reply.status(201).send({message: "Could not find the user"});
+        reply.status(201).send()
+    } catch(e) {
+        console.log(e)
+        reply.status(500).send({error: "Server error"})
+    }
+}
+
 async function modifyInfo(req, reply) {
     const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{7,}$/;
     try {
@@ -102,4 +116,4 @@ async function watchedMovie(req, reply) {
     }
 }
 
-export default {getUser, modifyInfo, getWatchedMovie, watchedMovie}
+export default {getUser, modifyInfo, getWatchedMovie, watchedMovie, deleteUser}

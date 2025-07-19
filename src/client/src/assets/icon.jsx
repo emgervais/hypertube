@@ -5,7 +5,6 @@ export function Save(props) {
         viewBox="0 0 512 512"
         width="1em"
         height="1em"
-        // className={"text-indigo-500 " + (props.className || "")}
         {...props}
       >
         <path

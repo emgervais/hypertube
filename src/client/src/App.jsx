@@ -8,7 +8,7 @@ import ConfirmResetToken from './components/auth/confirmResetToken.jsx'
 import Oauth from './components/auth/oauth.jsx'
 import Account from './components/account.jsx'
 import Library from './components/library.jsx'
-import MovieDetail from './components/movieDetail.jsx'
+import VideoPlayer from './components/videoPlayer.jsx'
 import {AuthProvider } from './components/auth/authContext.jsx'
 import { BrowserRouter } from 'react-router-dom';
 import { Routes, Route } from 'react-router-dom';
@@ -30,8 +30,7 @@ function App() {
             <Route path='/confirmResetToken' element={<ConfirmResetToken/>}/>
             <Route path='/oauth' element={<Oauth/>}/>
             <Route path='/account' element={<PrivateRoute><Account/></PrivateRoute>}/>
-            <Route path='/library' element={<Library/>}/>
-            <Route path='/movie' element={<MovieDetail/>}/>
+            <Route path='/movie' element={<PrivateRoute><VideoPlayer/></PrivateRoute>}/>
             <Route path="*" element={<NoMatch/ >} />
           </Route>
         </Routes>

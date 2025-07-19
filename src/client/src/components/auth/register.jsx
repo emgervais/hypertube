@@ -50,7 +50,7 @@ export default function Register() {
           <div className="m-5 md:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
             {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
             <form onSubmit={handleSubmit} className="space-y-6">
-            <div >
+            <div>
                 <label htmlFor="username" className="block text-sm/6 font-medium text-white-900 text-left">
                   Username
                 </label>
@@ -129,10 +129,7 @@ export default function Register() {
                 </div>
               </div>
   
-              <button
-                type="submit"
-                className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500"
-              >
+              <button type="submit" className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500">
                 Sign up
               </button>
             </form>

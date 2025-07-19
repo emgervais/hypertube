@@ -1,16 +1,10 @@
 retest whole features
 dockers
 
-cleanup
-------------------------
-bittorrent
-frontend
-
-offer account deletion
-
 Bonus
 -----------------------
 manage playback
 mediasource
 more routes (admin routes)
 starting download where it left off
+delete account

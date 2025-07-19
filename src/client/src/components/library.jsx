@@ -29,10 +29,12 @@ export default function Library() {
     const [filters, setFilters] = useState({sort: "download_count", page: 1});
     const [watched, setWatched] = useState([]);
     const fetchProtected = useFetchWithAuth();
+
     const resetList = () => {
       setDone(false);
       setMovieList([]);
     }
+
     const fetchMore = () => {
       if (loading) return;
       setLoading(true);
@@ -41,6 +43,7 @@ export default function Library() {
         setLoading(false);
       }, 1000);
     };
+    
     useInfiniteScroll(fetchMore);
 
 
@@ -83,42 +86,28 @@ export default function Library() {
     }, [filters]);
 
     return (
-<div className="flex flex-col m-5 ml-0 h-fit w-full">
-  <header className="flex flex-col gap-4 md:flex-row md:justify-between">
-    <form
-      className="flex flex-col sm:flex-row gap-2 items-center"
-      onSubmit={handleSearch}
-    >
-      <input
-        className="border border-gray-300 rounded-md text-center px-2 py-1 w-full sm:w-auto"
-        id="searchMovie"
-        name="searchMovie"
-        type="text"
-        required
-        autoComplete="off"
-        placeholder="Search a movie"
-      />
-      <button
-        type="submit"
-        className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 w-full sm:w-auto"
-      >
-        Search
-      </button>
-    </form>
-
-    <ul className="flex flex-wrap justify-center gap-3">
-      <li><DropDown position="left" reset={resetList} setFilters={setFilters} options={["2", "4", "6", "8"]} main="Rating" /></li>
-      <li><DropDown position="left" reset={resetList} setFilters={setFilters} options={["action", "adventure", "animation", "comedy", "anime", "crime", "documentary", "drama", "sci-fi", "romance"]} main="Genre" /></li>
-      <li><DropDown position="right" reset={resetList} setFilters={setFilters} options={["480p", "720p", "1080p", "2160p", "3D"]} main="Quality" /></li>
-      <li><DropDown position="right" reset={resetList} setFilters={setFilters} options={["Title", "Rating", "Year"]} main="Sort by" /></li>
-    </ul>
-  </header>
-
-  <main className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5 mt-5">
-    {movieList.map((movie) => (
-      <MovieCard key={movie.id} movie={movie} isWatched={watched.includes(movie.id)} />
-    ))}
-  </main>
-</div>
+      <div className="flex flex-col m-5 ml-0 h-fit w-full">
+        <header className="flex flex-col gap-4 md:flex-row md:justify-between">
+          <form className="flex flex-col sm:flex-row gap-2 items-center" onSubmit={handleSearch}>
+            <input className="border border-gray-300 rounded-md text-center px-2 py-1 w-full sm:w-auto" id="searchMovie" name="searchMovie" type="text" required autoComplete="off" placeholder="Search a movie"/>
+            <button type="submit" className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 w-full sm:w-auto">
+              Search
+            </button>
+          </form>
+          
+          <ul className="flex flex-wrap justify-center gap-3">
+            <li><DropDown position="left" reset={resetList} setFilters={setFilters} options={["2", "4", "6", "8"]} main="Rating" /></li>
+            <li><DropDown position="left" reset={resetList} setFilters={setFilters} options={["action", "adventure", "animation", "comedy", "anime", "crime", "documentary", "drama", "sci-fi", "romance"]} main="Genre" /></li>
+            <li><DropDown position="right" reset={resetList} setFilters={setFilters} options={["480p", "720p", "1080p", "2160p", "3D"]} main="Quality" /></li>
+            <li><DropDown position="right" reset={resetList} setFilters={setFilters} options={["Title", "Rating", "Year"]} main="Sort by" /></li>
+          </ul>
+        </header>
+          
+        <main className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-5 mt-5">
+          {movieList.map((movie) => (
+            <MovieCard key={movie.id} movie={movie} isWatched={watched.includes(movie.id)} />
+          ))}
+        </main>
+      </div>
     )
 }

@@ -44,7 +44,7 @@ export default function Login() {
           <div className="m-5 md:mt-10 sm:mx-auto sm:w-full sm:max-w-md">
           {errors && <Error className="bg-red-800 rounded-lg" message={errors}/>}
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div >
+              <div>
                 <label htmlFor="username" className="block text-sm/6 font-medium text-white-900 text-left">
                   Username
                 </label>
@@ -84,10 +84,7 @@ export default function Login() {
               </div>
   
               <div>
-                <button
-                  type="submit"
-                  className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500"
-                >
+                <button type="submit" className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500">
                   Sign in
                 </button>
               </div>
@@ -103,10 +100,7 @@ export default function Login() {
   </div>
 
   <div className="mt-6 grid grid-cols-2 gap-4">
-    <a
-      href="http://127.0.0.1:8080/auth/42"
-      className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700"
-    >
+    <a href="http://127.0.0.1:8080/auth/42" className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700">
       <svg className="h-5 w-5" viewBox="0 -200 960 960" fill="currentColor">
         <polygon points="32,412.6 362.1,412.6 362.1,578 526.8,578 526.8,279.1 197.3,279.1 526.8,-51.1 362.1,-51.1 32,279.1" />
         <polygon points="597.9,114.2 762.7,-51.1 597.9,-51.1" />
@@ -115,10 +109,7 @@ export default function Login() {
       </svg>
     </a>
 
-    <a
-      href="http://127.0.0.1:8080/auth/google"
-      className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700"
-    >
+    <a href="http://127.0.0.1:8080/auth/google" className="flex w-full items-center justify-center gap-2 rounded-md bg-gray-800 px-3 py-1.5 text-sm font-semibold text-white hover:bg-gray-700">
       <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
         <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
         <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>

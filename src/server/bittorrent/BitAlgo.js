@@ -5,10 +5,10 @@ import crypto from 'crypto'
 
 export default class BitAlgo {
   constructor (requests, torrent, receivedPieces, requestedPieces, offsets, totalPieces, fileLength, fileFd) {
-		this.requests = requests
-		this.isDownloading = true;
-		this.interestedPeers = {};
-		this.peersList = {}
+	this.requests = requests
+	this.isDownloading = true;
+	this.interestedPeers = {};
+	this.peersList = {}
     this.selectedPeers = new Set()
     this.torrent        = torrent;
     this.totalPieces    = totalPieces;
@@ -19,7 +19,6 @@ export default class BitAlgo {
     this.receivedPieces = receivedPieces;
     this.requestedPieces = requestedPieces;
     this.fileFd = fileFd
-    this.isDownloading = true;
     this.currentPlayBack = 0;
   }
 
@@ -149,24 +148,25 @@ export default class BitAlgo {
 		for (let pieceIndex = startPiece; pieceIndex < this.totalPieces; pieceIndex++) {
 			const nBlocks = this.requestedPieces[pieceIndex].length;
 			for (let blockIndex = 0; blockIndex < nBlocks; blockIndex++) {
+				if(this.requestedPieces[pieceIndex][blockIndex]) {
+					continue;
+				}
+				
+				if (this.requestedPieces[pieceIndex][blockIndex] && typeof this.requestedPieces[pieceIndex][blockIndex] !== 'boolean') {
+					clearTimeout(this.requestedPieces[pieceIndex][blockIndex]);
+				}
+				
+				this.requestedPieces[pieceIndex][blockIndex] = setTimeout(() => {
+					console.log(`timeout piece ${pieceIndex} block ${blockIndex}`);
+					this.requestedPieces[pieceIndex][blockIndex] = false;
+				}, 10000);
+				
 				const offsettedBlockIndex = blockIndex + (pieceIndex === 0 ? this.offsets[BLOCK] : 0);
 				const offsettedPieceIndex = pieceIndex + this.offsets[PIECE];
-
-				if (!this.requestedPieces[pieceIndex][blockIndex]) {
-					if (this.requestedPieces[pieceIndex][blockIndex] && typeof this.requestedPieces[pieceIndex][blockIndex] !== 'boolean') {
-						clearTimeout(this.requestedPieces[pieceIndex][blockIndex]);
-					}
-
-					this.requestedPieces[pieceIndex][blockIndex] = setTimeout(() => {
-						console.log(`timeout piece ${pieceIndex} block ${blockIndex}`);
-						this.requestedPieces[pieceIndex][blockIndex] = false;
-					}, 10000);
-
-					const isLast = pieceIndex === this.totalPieces - 1 && blockIndex === nBlocks - 1;
-					const block = { index: offsettedPieceIndex, begin: offsettedBlockIndex * 16*1024, length: this.blockLen(isLast)}
-					peer.queue.push(block);
-					return block;
-				}
+				const isLast = pieceIndex === this.totalPieces - 1 && blockIndex === nBlocks - 1;
+				const block = { index: offsettedPieceIndex, begin: offsettedBlockIndex * 16*1024, length: this.blockLen(isLast)}
+				peer.queue.push(block);
+				return block;
 			}
 		}
 		return null;
@@ -179,12 +179,7 @@ export default class BitAlgo {
 		const buf = Buffer.alloc(length);
 		fs.read(this.fileFd, buf, 0, length, offset, (err, bytesRead) => {
 				if (err || bytesRead === 0) return;
-				const msg = Buffer.alloc(13 + length);
-				msg.writeUInt32BE(9 + length, 0); 
-				msg.writeUInt8(7, 4);
-				msg.writeUInt32BE(index, 5);
-				msg.writeUInt32BE(begin, 9);
-				buf.copy(msg, 13);
+				const msg = this.requests.buildRequestAnswer(length, begin, buf)
 				this.peersList[socketId].socket.write(msg);
 				const peer = this.peersList[socketId];
 				peer.uploadedBytes = (peer.uploadedBytes || 0) + length;
@@ -245,10 +240,9 @@ export default class BitAlgo {
 
 		if(this.receivedPieces[pieceIndex].every(i=>i)) {
 			const fullPiece = Buffer.concat(this.receivedPieces[pieceIndex]);
-			const offset = pieceIndex * this.torrent.info['piece length'] - (pieceIndex === 0 ? 0 : (this.offsets[BEGIN] + this.offsets[BLOCK] * 16 * 1024));
 			const buffHash = crypto.createHash('sha1').update(fullPiece).digest();
 			const targetHash = this.torrent['info'].pieces.subarray(pieceIndex * 20, (pieceIndex + 1) * 20);
-
+			
 			if(pieceIndex && pieceIndex !== this.totalPieces - 1 && buffHash.compare(targetHash) !== 0) {
 				console.log(`incorrect piece ${pieceIndex} # ${blockIndex}`);
 				this.requestedPieces[pieceIndex].fill(false);
@@ -256,6 +250,7 @@ export default class BitAlgo {
 			}
 			else {
 				console.log(`Writing piece ${pieceIndex}`);
+				const offset = pieceIndex * this.torrent.info['piece length'] - (pieceIndex === 0 ? 0 : (this.offsets[BEGIN] + this.offsets[BLOCK] * 16 * 1024));
 				fs.writeSync(this.fileFd, fullPiece, 0, fullPiece.length, offset, () => {});
 				this.receivedPieces[pieceIndex].fill(true);
 			}

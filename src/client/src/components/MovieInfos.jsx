@@ -1,5 +1,4 @@
-import { useEffect, useState, useRef } from "react"
-import { useFetchWithAuth } from '../utils/fetchProtected.js'
+import { useEffect, useState } from "react"
 
 export default function Movieinfos({id, title, year, runtime, rating}) {
     const [summary, setSummary] = useState("");
@@ -33,5 +32,5 @@ export default function Movieinfos({id, title, year, runtime, rating}) {
             })}
             </div>
         </div>
-    );
+    )
 }

@@ -5,16 +5,13 @@ import Comments from './Comments.jsx'
 import MovieInfos from './MovieInfos.jsx'
 
 function srt2webvtt(data) {
-  let srt = data.replace(/\r+/g, '');
-  srt = srt.trim();
-  srt = srt.replace(/<[a-zA-Z\/][^>]*>/g, '');
-
-  const cuelist = srt.split(/\n{2,}/);
+  const cuelist = data.replace(/\r+/g, '').trim().replace(/<[a-zA-Z\/][^>]*>/g, '').split(/\n{2,}/);
   let result = "WEBVTT\n\n";
 
   for (let i = 0; i < cuelist.length; i++) {
     const cue = convertSrtCue(cuelist[i]);
-    if (cue) result += cue;
+    if (cue)
+      result += cue;
   }
 
   return result;
@@ -45,7 +42,7 @@ function convertSrtCue(caption) {
   return `${vttTimestamp}\n${textLines}\n\n`;
 }
 
-export default function MovieDetail() {
+export default function VideoPlayer() {
   const location = useLocation();
   const videoRef = useRef(null);
   const sourceBufferRef = useRef(null);
@@ -62,6 +59,7 @@ export default function MovieDetail() {
     let retries = 0;
     while (retries < 20) {
       try {
+        if(index !== -1 && index != nextSegmentIndex.current) return null;
         if(index === -1) {
           const res = await fetchWithAuth(`/stream/manifest?id=${location.state.movie.id}`);
           if(!res.ok) {
@@ -73,21 +71,23 @@ export default function MovieDetail() {
             mediaSourceRef.current.duration = manifest.length;
           }
         }
-        if(index !== -1 && index != nextSegmentIndex.current) return null;
+
         const res = await fetchWithAuth(`/stream?id=${location.state.movie.id}&segment=${index}`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
         if(res.status === 204) {
           Done.current = true;
           fetchWithAuth(`/user/watchedMovie?id=${location.state.movie.id}`, {
             method: 'PUT'
           });
         }
+
         const buffer = new Uint8Array(await res.arrayBuffer());
-        return buffer
+        return buffer;
       } catch (err) {
         retries++;
         console.warn(`Retrying segment ${index} (attempt ${retries})`);
-        await new Promise(r => setTimeout(r, 10000));
+        await new Promise(r => setTimeout(r, 15000));
       }
     }
     throw new Error(`Failed to fetch segment ${index}`);

@@ -1,15 +1,12 @@
-import Header from './header';
+import Sidebar from './sidebar';
 import { Outlet } from 'react-router-dom';
-import { useState } from 'react'
 
 
 
 function Layout() {
-  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
-
   return (
     <div className='flex w-screen h-full'>
-      <Header setDesktopSidebarOpen={setDesktopSidebarOpen} />
+      <Sidebar />
       <Outlet className="grow-5"/>
     </div>
   );
