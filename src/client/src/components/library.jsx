@@ -9,8 +9,6 @@ function useInfiniteScroll(callback, offset = 300) {
       const visible = window.innerHeight;
       const pageHeight = document.getElementsByTagName('main')[0].offsetHeight;
 
-      console.log(scrollY, pageHeight - visible - offset);
-  
       if (scrollY >= pageHeight - visible - offset) {
         callback();
       }

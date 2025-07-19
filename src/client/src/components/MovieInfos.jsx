@@ -25,9 +25,9 @@ export default function Movieinfos({id, title, year, runtime, rating}) {
             </div>
             <p className="mb-5 text-xs md:text-lg">{summary}</p>
             <div className="flex justify-between">
-            {cast.map((c) => {
+            {cast.map((c, i) => {
                 return(
-                    <h6 className="mb-5 mr-3 text-[0.5rem] md:text-lg">{c.name} as {c.character ? c.character : c.job}</h6>
+                    <h6 key={i} className="mb-5 mr-3 text-[0.5rem] md:text-lg">{c.name} as {c.character ? c.character : c.job}</h6>
                 )
             })}
             </div>

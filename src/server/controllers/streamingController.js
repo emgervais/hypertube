@@ -46,7 +46,7 @@ async function stream(req, reply) {
             return reply.status(404).send({ error: "Movie not available." });
         }
 
-        if (!activeDownloads[id] && !movie.isDownloaded) {
+        if (!activeDownloads[id] && !movie.isDownloaded && id === 'tt1254207') {
             await startDownload(movie, collection);
             console.log('Movie download started');
             return reply.status(503).header('Retry-After', 30).send();
@@ -58,7 +58,7 @@ async function stream(req, reply) {
             return reply.status(503).header('Retry-After', 30).send({ error: "File not yet created by download." });
         }
 
-        if(!movie.isDownloaded && activeDownloads[id].timeout)
+        if(!movie.isDownloaded && activeDownloads[id]?.timeout)
             clearTimeout(activeDownloads[id].timeout);
 
         if(activeDownloads[id]) {

@@ -22,7 +22,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            <Route path='/' element={<Library />}/>
+            <Route path='/' element={<PrivateRoute><Library /></PrivateRoute>}/>
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path='/resetPassword' element={<ResetPassword />}/>

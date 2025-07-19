@@ -73,8 +73,8 @@ export async function stopDownload(id, collection) {
 
 export async function findSubs(movieId, userLanguage) {
     const [movie, subs] = await findMovie(movieId);
-    const url = subs.get(userLanguage);
-    if(!movie || movie.language === userLanguage || !url)
+    const url = movie.language === userLanguage ? subs.get('English') : subs.get(userLanguage);
+    if(!movie || !url)
         return null;
     const res = await fetch(url);
     if(!res.ok)

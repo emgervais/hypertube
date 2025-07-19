@@ -53,10 +53,13 @@ export default async function fetchPopcorn(params) {
             return([]);
         }
         const movies = await res.json();
+        if(!movies)
+            return [];
         let results = movies;
         if(params.quality || params.rating)
             results = await filterResults(movies, params.quality, params.rating);
-        
+        if(!results)
+            return [];
         return (results.map((movie) => ({
             id: movie.imdb_id,
             title: movie.title,
