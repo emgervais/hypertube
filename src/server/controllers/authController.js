@@ -140,10 +140,10 @@ async function oauth42Callback(req, reply) {
             });
             token = await setToken(createdUser.insertedId, username, reply, req);
         }
-        return reply.redirect(`http://127.0.0.1:5173/oauth?token=${token}&username=${username}`);
+        return reply.redirect(`http://127.0.0.1:8080/oauth?token=${token}&username=${username}`);
       } catch (error) {
         console.error('OAuth Error:', error);
-        return reply.redirect('http://127.0.0.1:5173/login?error=OAuthFailed');
+        return reply.redirect('http://127.0.0.1:8080/login?error=OAuthFailed');
       }
 }
 
@@ -188,10 +188,10 @@ async function oauthGoogleCallback (req, reply) {
         });
         token = await setToken(createdUser._id, createdUser.username, reply, req);
       }
-      return reply.redirect(`http://127.0.0.1:5173/oauth?token=${token}&username=${username}`);
+      return reply.redirect(`http://127.0.0.1:8080/oauth?token=${token}&username=${username}`);
     } catch (error) {
       console.error('OAuth Error:', error);
-      return reply.redirect('http://127.0.0.1:5173/login?error=OAuthFailed');
+      return reply.redirect('http://127.0.0.1:8080/login?error=OAuthFailed');
     }
   }
 

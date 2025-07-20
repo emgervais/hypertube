@@ -59,7 +59,7 @@ function EditableField({ fieldKey, initialValue, activeField, accountActions, is
     return (
         <li className='max-w-sm'>
             <form className="flex items-center justify-between" onSubmit={handleSubmit}>
-                <label className='text-xs md:text-lg min-w-16' htmlFor={fieldKey}>{fieldKey}: </label>
+                <label className='text-xs md:text-lg min-w-16 md:min-w-32' htmlFor={fieldKey}>{fieldKey}: </label>
                 <div className='flex'>
                 <input
                     ref={inputRef}

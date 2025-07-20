@@ -187,7 +187,8 @@ fastify.get("/images/:name", (req, reply) => {
 
 async function main() {
   fastify.listen({
-    port: process.env.PORT
+    port: process.env.PORT,
+    host: '0.0.0.0'
   });
 }
 

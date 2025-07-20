@@ -91,7 +91,7 @@ async function getWatchedMovie(req, reply) {
         const collection = this.mongo.db.collection('users');
         const id = new this.mongo.ObjectId(req.user.id);
         const user = await collection.findOne(id);
-        reply.status(200).send(user.watchedMovie || []);
+        reply.status(200).send(user?.watchedMovie || []);
     } catch(e) {
         console.log(e);
         reply.status(500).send({error: e});
