@@ -40,7 +40,7 @@ async function stream(req, reply) {
         const segmentIndex = parseInt(segment, 10);
         
         const collection = this.mongo.db.collection('movies');
-        const movie = await collection.findOne({ filmId: id }) || await movieCreation(id, collection);
+        const movie = await collection.findOneAndUpdate({filmId: id}, {$set: {lastSeen: new Date()}}) || await movieCreation(id, collection);
         
         if (!movie) {
             return reply.status(404).send({ error: "Movie not available." });

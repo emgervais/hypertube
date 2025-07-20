@@ -1,14 +1,11 @@
 node_modules
 .env
-package-lock.json
-__pycache__
 *.data
 *.torrent
-film
 *.mp4
 *.png
 *.avi
 *.webm
 src/server/movies/*
 test
-dist
+.git
