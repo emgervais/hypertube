@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState } from 'react';
 import { useFetchWithAuth } from '../utils/fetchProtected.js'
 import Comments from './Comments.jsx'
@@ -44,6 +44,7 @@ function convertSrtCue(caption) {
 
 export default function VideoPlayer() {
   const location = useLocation();
+  const navigate = useNavigate();
   const videoRef = useRef(null);
   const sourceBufferRef = useRef(null);
   const mediaSourceRef = useRef(null);
@@ -85,6 +86,7 @@ export default function VideoPlayer() {
         const buffer = new Uint8Array(await res.arrayBuffer());
         return buffer;
       } catch (err) {
+        if (Done.current === true) return null;
         retries++;
         console.warn(`Retrying segment ${index} (attempt ${retries})`);
         await new Promise(r => setTimeout(r, 15000));
@@ -116,18 +118,24 @@ export default function VideoPlayer() {
     });
     //init
     mediaSource.addEventListener('sourceopen', async () => {
-      const initBuf = await fetchSegment(-1);
-      const mime = `video/mp4; codecs="avc1.64001F, mp4a.40.2"`;
-      sourceBufferRef.current = mediaSourceRef.current.addSourceBuffer(mime);
-      sourceBufferRef.current.appendBuffer(initBuf);
-      sourceBufferRef.current.addEventListener('updateend', () => {
-        if(waiting.current === true) {
-          waiting.current = false;
-          videoRef.current.currentTime += 0.01;
-        } else {
-          pumpNextSegment();
-        }
-      });
+      try {
+        const initBuf = await fetchSegment(-1);
+        if(!initBuf) return;
+        const mime = `video/mp4; codecs="avc1.64001F, mp4a.40.2"`;
+        sourceBufferRef.current = mediaSourceRef.current.addSourceBuffer(mime);
+        sourceBufferRef.current.appendBuffer(initBuf);
+        sourceBufferRef.current.addEventListener('updateend', () => {
+          if(waiting.current === true) {
+            waiting.current = false;
+            videoRef.current.currentTime += 0.01;
+          } else {
+            pumpNextSegment();
+          }
+        });
+      } catch(e) {
+        mediaSourceRef.current.endOfStream();
+        cleanup();
+      }
     });
     //cleanup only when playback goes normally
     setInterval(() => {
@@ -141,29 +149,34 @@ export default function VideoPlayer() {
       }
     }, 2000);
     //subtitles
-    fetchWithAuth(`/stream/subtitle/${location.state.movie.id}`)
-      .then(async res => {
-        const track = document.getElementById('sub');
-        try {
-          const subs = await res.json();
-          const subsData = new TextDecoder('utf-8').decode(new Uint8Array(subs.data.data));
-        
-          let vttData = subsData;
-          const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
-          if (isSRT) {
-            vttData = srt2webvtt(vttData);
+    try {
+      fetchWithAuth(`/stream/subtitle/${location.state.movie.id}`)
+        .then(async res => {
+          const track = document.getElementById('sub');
+          try {
+            const subs = await res.json();
+            const subsData = new TextDecoder('utf-8').decode(new Uint8Array(subs.data.data));
+          
+            let vttData = subsData;
+            const isSRT = /^\d+\s*\n\d{2}:\d{2}:\d{2},\d{3}/m.test(subsData);
+            if (isSRT) {
+              vttData = srt2webvtt(vttData);
+            }
+            const blob = new Blob([vttData], { type: 'text/vtt' });
+            const url = URL.createObjectURL(blob);
+            track.src = url;
+            track.default = true;
           }
-          const blob = new Blob([vttData], { type: 'text/vtt' });
-          const url = URL.createObjectURL(blob);
-          track.src = url;
-          track.default = true;
-        }
-        catch(e) {
-          track.remove()
-          return;
-        }
-    
-      });
+          catch(e) {
+            track.remove()
+            return;
+          }
+      
+        });
+    } catch(e) {
+      console.log(e)
+      return;
+    }
  };
 
   const pumpNextSegment = async () => {
@@ -198,6 +211,7 @@ export default function VideoPlayer() {
   };
 
   const cleanup = () => {
+  Done.current = true;
   if (videoRef.current) {
     videoRef.current.removeAttribute('src');
     videoRef.current.load();
@@ -217,11 +231,18 @@ const startFilm = () => {
   setStarted(true);
 }
   useEffect(() => {
+  if (!location.state || !location.state.movie) {
+    navigate('/')
+  }
     if(started) {
       initializeVideo();
       return cleanup
     }
-  }, [started]);
+  }, [location, started]);
+
+  if (!location.state || !location.state.movie) {
+    return null;
+  }
 
   return (<div className='grow-5 m-10 flex flex-col justify-between items-center'>
     <MovieInfos id={location.state.movie.id} title={location.state.movie.title} year={location.state.movie.year} runtime={location.state.movie.runtime} rating={location.state.movie.rating} />

@@ -52,8 +52,8 @@ async function stream(req, reply) {
             return reply.status(503).header('Retry-After', 30).send();
         }
 
-        const folderPath = movie.bitBody.file.split('/').slice(0, -1).join('/');
-        if (!await fileExist(folderPath) || !await fileExist(movie.bitBody.file)) {
+        const folderPath = movie.bitBody.file?.split('/').slice(0, -1).join('/');
+        if (!folderPath || !await fileExist(folderPath) || !await fileExist(movie.bitBody.file)) {
             console.log(`Movie Folder or file not created yet folder: ${folderPath} file: ${movie.bitBody.file}`);
             return reply.status(503).header('Retry-After', 30).send({ error: "File not yet created by download." });
         }

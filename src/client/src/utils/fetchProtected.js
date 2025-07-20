@@ -28,11 +28,12 @@ export const createAuthenticatedFetcher = (accessToken, login, navigate) => {
   };
 
   const fetchWithAuth = async (url, options = {}) => {
+    const token = accessToken ? accessToken : ""
     const res = await fetch(`${API_URL}${url}`, {
       ...options,
       headers: {
         ...options.headers,
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token}`,
       },
     });
 

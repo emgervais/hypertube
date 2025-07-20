@@ -17,6 +17,7 @@ import streamingRoutes from "./routes/streamingRoutes.js"
 import userRoutes from "./routes/userRoutes.js"
 import adminRoutes from "./routes/adminRoutes.js"
 import cleanup from './plugin/cleaner.js'
+import createAdmin from './utils/init.js'
 
 dotenv.config()
 
@@ -171,6 +172,7 @@ fastify.after(() => {
         fastify.log.info("Collection 'comments' already exists");
     }
   });
+  createAdmin(db);
   //cleanup cron
   const limit = 24 * 60 * 60 * 1000;
   setInterval(() => {cleanup(db)}, limit)
