@@ -16,9 +16,10 @@ async function register(req, reply) {
 
         const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
         const user = await collection.insertOne({...req.body, password: hash, picture: "http://localhost:8080/images/default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false, isAdmin: false, watchedMovie: []});
-        await login({body: {username: req.body.username, password: req.body.password}}, reply);
+        await login.call(this, req, reply);
         return;
     } catch(e) {
+        console.log(e)
         reply.status(500).send({error: "Server error"});
     }  
 }
@@ -34,6 +35,7 @@ async function login(req, reply) {
         const token = await setToken(user._id, user.username, reply, req);
         reply.status(200).send({username: user.username, accessToken: token});
     } catch(e) {
+        console.log(e)
         reply.status(500).send({error: "Server error"});
     }  
 }

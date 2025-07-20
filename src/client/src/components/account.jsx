@@ -38,7 +38,7 @@ function EditableField({ fieldKey, initialValue, activeField, accountActions, is
         });
         if(!res.ok) {
             const result = await res.json();
-            setError(result.error);
+            setError(result.message || result.error);
             setValue(initialValue);
         }
         else
