@@ -104,7 +104,7 @@ export default function Account() {
 
     useEffect(() => {
         const request = async () => {
-            const res = await fetchWithAuth(`/user/${user}`)
+            const res = await fetchWithAuth(`/user/${user || ""}`)
             const infos = await res.json();
             if(!res.ok) {
                 setError(infos.error);

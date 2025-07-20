@@ -13,7 +13,7 @@ export default function Oauth() {
                 const token = params.get('token');
                 const username = params.get('username');
                 
-                if (!token) {
+                if (!token || !username) {
                     navigate('/login');
                     return;
                 }

@@ -8,7 +8,7 @@ export async function setToken(id, username, reply, req) {
     const refresh = req.jwt.sign(payload, {expiresIn: '7d'})
     const token = req.jwt.sign(payload, {expiresIn: '2h'})
     reply.header('Access-Control-Allow-Credentials', 'true');
-    reply.header('Access-Control-Allow-Origin', 'http://127.0.0.1:8080');
+    reply.header('Access-Control-Allow-Origin', `http://127.0.0.1:${process.env.NODE_ENV === 'dev' ? '5173': '8080'}`);
     reply.setCookie('refreshToken', refresh, {
         path: '/',
         httpOnly: true,

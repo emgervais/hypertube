@@ -4,19 +4,27 @@ import { useAuth } from '../components/auth/authContext.jsx';
 const API_URL = "http://127.0.0.1:8080";
 
 export const createAuthenticatedFetcher = (accessToken, login, navigate) => {
+  let refreshPromise = null;
+
   const refreshToken = async () => {
-    const res = await fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include'
-    });
-    
-    if (!res.ok) {
-      navigate('/login');
-      return null;
+    if (!refreshPromise) {
+      refreshPromise = (async () => {
+        const res = await fetch(`${API_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include'
+        });
+        if (!res.ok) {
+          navigate('/login');
+          refreshPromise = null;
+          return null;
+        }
+        const data = await res.json();
+        login(data.accessToken, data.username);
+        refreshPromise = null;
+        return data.accessToken;
+      })();
     }
-    const data = await res.json();
-    login(data.accessToken, data.username);
-    return data.accessToken;
+    return refreshPromise;
   };
 
   const fetchWithAuth = async (url, options = {}) => {

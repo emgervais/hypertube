@@ -16,7 +16,8 @@ async function register(req, reply) {
 
         const hash = await bcrypt.hash(req.body.password, SALT_ROUNDS)
         const user = await collection.insertOne({...req.body, password: hash, picture: "http://localhost:8080/images/default.png", language: "en", resetToken: null, resetExpire: null, isOauth: false, isAdmin: false, watchedMovie: []});
-        login({body: {username: user.username, password: req.body.password}}, reply)
+        await login({body: {username: req.body.username, password: req.body.password}}, reply);
+        return;
     } catch(e) {
         reply.status(500).send({error: "Server error"});
     }  
@@ -26,7 +27,7 @@ async function login(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
         const user = await collection.findOne({username: req.body.username, isOauth: false})
-        if(!user || !bcrypt.compare(req.body.password, user.password)) {
+        if(!user || !(await bcrypt.compare(req.body.password, user.password))) {
             reply.status(409).send({error: 'You have entered an invalid username or password.'});
             return;
         }
@@ -140,10 +141,10 @@ async function oauth42Callback(req, reply) {
             });
             token = await setToken(createdUser.insertedId, username, reply, req);
         }
-        return reply.redirect(`http://127.0.0.1:8080/oauth?token=${token}&username=${username}`);
+        return reply.redirect(`http://127.0.0.1:${process.env.NODE_ENV === 'dev' ? '5173': '8080'}/oauth?token=${token}&username=${username}`);
       } catch (error) {
         console.error('OAuth Error:', error);
-        return reply.redirect('http://127.0.0.1:8080/login?error=OAuthFailed');
+        return reply.redirect(`http://127.0.0.1:${process.env.NODE_ENV === 'dev' ? '5173': '8080'}/login?error=OAuthFailed`);
       }
 }
 
@@ -188,10 +189,10 @@ async function oauthGoogleCallback (req, reply) {
         });
         token = await setToken(createdUser._id, createdUser.username, reply, req);
       }
-      return reply.redirect(`http://127.0.0.1:8080/oauth?token=${token}&username=${username}`);
+      return reply.redirect(`http://127.0.0.1:${process.env.NODE_ENV === 'dev' ? '5173': '8080'}/oauth?token=${token}&username=${username}`);
     } catch (error) {
       console.error('OAuth Error:', error);
-      return reply.redirect('http://127.0.0.1:8080/login?error=OAuthFailed');
+      return reply.redirect(`http://127.0.0.1:${process.env.NODE_ENV === 'dev' ? '5173': '8080'}/login?error=OAuthFailed`);
     }
   }
 

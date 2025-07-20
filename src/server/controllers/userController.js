@@ -6,7 +6,7 @@ import sharp from 'sharp';
 async function getUser(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
-        const user = await collection.findOne({username: req.params.username});
+        const user = await collection.findOne({username: (req.params.username || req.user.username)});
         if (!user)
             return reply.status(404).send({error: "User doesn't exist"});
         //if user is requesting its own profile include more info
