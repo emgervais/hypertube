@@ -73,7 +73,7 @@ async function stream(req, reply) {
         if(fragment === null) {
             console.log('Error Fragment can\'t be served yet');
             reply.status(503).header('Retry-After', 30).send();
-            await mediaPipe(movie.bitBody.file, folderPath, id);
+            await mediaPipe(movie.bitBody.file, folderPath, id, movie.isDownloaded);
         }
         else {
             const isLastSegment = segment * 4 >= movie.bitBody.length;

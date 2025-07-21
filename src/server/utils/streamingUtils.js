@@ -138,10 +138,11 @@ export async function getSegment(segmentIndex, folderPath, isDownloaded) {
             return null;
         }
 }
-export async function mediaPipe(filePath, folderPath, id) {
-    if(!activeDownloads[id] || activeDownloads[id]?.isFFmpeg) return;
+export async function mediaPipe(filePath, folderPath, id, isDownloaded) {
+    if((!activeDownloads[id] && !isDownloaded) || activeDownloads[id]?.isFFmpeg || id === 'tt0829482') return;
 
-    activeDownloads[id].isFFmpeg = true;
+    if(!isDownloaded)
+        activeDownloads[id].isFFmpeg = true;
     const tempFile = path.join(folderPath, `temp.mp4`)
     try {
             await new Promise((res, rej) => {
