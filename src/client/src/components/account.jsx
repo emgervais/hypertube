@@ -185,7 +185,7 @@ export default function Account() {
                 <div className='md:max-w-1/2 flex justify-center mt-5 mb-5 md:mb-10'>
                     {error && <Error message={error}/>}
                 </div>
-                <ul className='grid grid-cols-1 gap-10 lg:grid-cols-2 lg:w-8/10 max-w-3xl'>
+                <ul className='grid justify-items-center grid-cols-1  gap-10 xl:grid-cols-2 lg:w-8/10 max-w-3xl'>
                     {Object.entries(userData).map(([key, value]) => {
                         if(key === 'picture') return null;
                         return (
