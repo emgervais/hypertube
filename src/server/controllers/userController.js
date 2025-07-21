@@ -2,6 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { fileTypeFromBuffer } from 'file-type';
 import sharp from 'sharp';
+import { BSONError } from "bson";
 
 async function getUser(req, reply) {
     try {
@@ -35,11 +36,12 @@ async function deleteUser(req, reply) {
 async function modifyInfo(req, reply) {
     const passRegex = /^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9]).{7,}$/;
     try {
+        const userID = req.params?.id ? req.params.id : req.user.id;
         const collection = this.mongo.db.collection('users');
-        const id = new this.mongo.ObjectId(req.user.id);
+        const id = new this.mongo.ObjectId(userID);
         const user = await collection.findOne(id);
         //Is valid password atleast one capital one small numbers and minimum of 7 char
-        if (req.body.password && !passRegex.test(req.body.password))
+        if (req.body.password && (!passRegex.test(req.body.password) || user.isOauth))
             return reply.status(409).send({error: "new password not valid"})
 
         if (req.body.username && await collection.findOne({username: req.body.username}))
@@ -82,6 +84,8 @@ async function modifyInfo(req, reply) {
         reply.status(200).send({message: "change successfull"});
     } catch(e) {
         console.log(e);
+        if(e.message.includes("hex string"))
+            return reply.status(404).send({error: "Invalid id"})
         reply.status(500).send({error: "Server error"})
     }
 }

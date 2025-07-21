@@ -72,8 +72,10 @@ export async function fetchMovieDetails(id) {
         }
     });
     if(!res.ok)
-        return reply.status(404).send();
+        return null;
     const movieDetails = await res.json();
+    if(!movieDetails || movieDetails?.movie_results?.length === 0)
+        return null;
     //get crew details
     const actorRes = await fetch(`https://api.themoviedb.org/3/movie/${movieDetails.movie_results[0].id}/credits?language=en-US`, {
         headers: {
@@ -82,8 +84,10 @@ export async function fetchMovieDetails(id) {
         }
     });
     if(!res.ok)
-        return reply.status(404).send();  
+        return null;  
     const crewDetails = await actorRes.json();
+    if(!crewDetails || crewDetails?.crew?.length === 0)
+        return null;
     const director = crewDetails.crew.find(member => member.job === "Director");
     return({summary: movieDetails.movie_results[0].overview, cast: crewDetails.cast.slice(0, 5), director: director})
 }

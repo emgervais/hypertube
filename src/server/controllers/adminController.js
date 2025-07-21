@@ -7,8 +7,10 @@ async function deleteUser(req, reply) {
         await collection.deleteOne({_id: id});
         reply.status(204);
     } catch(e) {
+        if(e.message.includes("hex string"))
+            return reply.status(404).send({error: "Invalid id"})
         reply.status(500).send({error: "Failed to delete user"});
-    }    
+    }
 }
 
 async function deleteMovie(req, reply) {

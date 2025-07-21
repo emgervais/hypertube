@@ -33,7 +33,6 @@ const addMovieSchema = S.object()
     .prop('isDownloaded', S.boolean())
     .prop('file', S.string())
 
-
 // const updateCommentSchema = S.object()
 //     .prop('comment', S.string().required())
 

@@ -9,7 +9,7 @@ async function apiRoutes (fastify, options) {
     fastify.post('/oauth/token', { schema: loginValidation }, authController.login)
     fastify.get('/users', {preHandler: [fastify.authenticate, adminValidation]}, apiController.getUsers)
     fastify.get('/users/:id', {preHandler: [fastify.authenticate, adminValidation],schema: oneParamValidation}, apiController.getUser)
-    fastify.patch('/users/:id', {preHandler: [fastify.authenticate, adminValidation], schema: updateValidation}, userController.modifyInfo)
+    fastify.patch('/users/:id', {preHandler: [fastify.authenticate, adminValidation], schema: {...updateValidation, ...oneParamValidation}}, userController.modifyInfo)
     fastify.get('/movies', apiController.getMovies);
     fastify.get('/movies/:id', {schema: oneParamValidation}, apiController.getMovie);
     fastify.get('/movies/filter', {schema: getMovieValidation}, apiController.getMovieFilter);

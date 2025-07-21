@@ -25,6 +25,8 @@ async function getUser(req, reply) {
         reply.status(200).send({username: user.username, email: user.email, picture: user.picture})
     } catch(e) {
         console.log(e);
+        if(e.message.includes("hex string"))
+            return reply.status(404).send({error: "Invalid id"})
         reply.status(500).send({error: "Failed to fetch user"})
     }
 }
@@ -71,7 +73,9 @@ async function getMovieFilter(req, reply) {
 async function getMovieDetails(req, reply) {
     try{
         const details = await fetchMovieDetails(req.params.id);
-        return reply.status(200).send(details)
+        if(!details)
+            return reply.status(404).send({error: "Could not find details for this movie"})
+        reply.status(200).send(details)
     }catch(e) {
         console.log(e);
         return reply.status(500).send({error: "Could not find the movie details"});
@@ -96,6 +100,8 @@ async function getMovieComments(req, reply) {
         return reply.status(200).send(comments);
     }catch(e) {
         console.log(e);
+        if(e.message.includes("hex string"))
+            return reply.status(404).send({error: "Invalid id"})
         return reply.status(500).send({error: "Could not find the comments"});
     }
 }
@@ -109,6 +115,8 @@ async function getComment(req, reply) {
         reply.status(200).send(comment);
     } catch(e) {
         console.log(e);
+        if(e.message.includes("hex string"))
+            return reply.status(404).send({error: "Invalid id"})
         reply.status(500).send({error: "Could not find the comment"})
     }
 }
@@ -119,6 +127,8 @@ async function postComment(req, reply) {
         const userCollection = this.mongo.db.collection("users");
         const id = new this.mongo.ObjectId(req.user.id)
         const user = await userCollection.findOne(id);
+        if(!user)
+            return reply.status(404).send({error: "Could not find user"})
         const collection = this.mongo.db.collection("comments");
         const comment = {username: user.username, movie_id: req.body.movie_id, comment: req.body.comment, date: `${date.getFullYear()}-${date.getMonth()}-${date.getDate()} ${date.toTimeString().slice(0, 8)}`}
         await collection.insertOne(comment);
@@ -133,12 +143,14 @@ async function patchComment(req, reply) {
     try {
         const commentId = new this.mongo.ObjectId(req.params.id);
         const collection = this.mongo.db.collection("comments");
-        const comment = await collection.findOneAndUpdate(commentId, {$set: {comment: req.body.comment, username: req.body.username}});
+        const comment = await collection.findOneAndUpdate({_id: commentId}, {$set: {comment: req.body.comment, username: req.body.username}});
         if (!comment)
             return reply.status(201).send({message: "Could not find the comment"});
         reply.status(200).send();
     } catch(e) {
         console.log(e);
+        if(e.message.includes("hex string"))
+            return reply.status(404).send({error: "Invalid id"})
         reply.status(500).send({error: "Could not modify the comment"})
     }
 }
@@ -147,12 +159,14 @@ async function deleteComment(req, reply) {
     try {
         const commentId = new this.mongo.ObjectId(req.params.id);
         const collection = this.mongo.db.collection("comments");
-        const comment = await collection.findOneAndDelete(commentId);
+        const comment = await collection.findOneAndDelete({_id: commentId});
         if (!comment)
             return reply.status(201).send({message: "Could not find the comment"});
         reply.status(200).send();
     } catch(e) {
         console.log(e);
+        if(e.message.includes("hex string"))
+            return reply.status(404).send({error: "Invalid id"})
         reply.status(500).send({error: "Could not delete comment"})
     }
 }
