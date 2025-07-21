@@ -26,7 +26,6 @@ async function login(req, reply) {
     try {
         const collection = this.mongo.db.collection('users');
         const user = await collection.findOne({username: req.body.username, isOauth: false})
-        console.log(req.body.password, user)
         if(!user || !(await bcrypt.compare(req.body.password, user.password))) {
             reply.status(409).send({error: 'You have entered an invalid username or password.'});
             return;

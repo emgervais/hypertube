@@ -2,7 +2,8 @@ import fs from 'fs'
 import path from 'path'
 import { fileTypeFromBuffer } from 'file-type';
 import sharp from 'sharp';
-import { BSONError } from "bson";
+import bcrypt from 'bcrypt'
+import { SALT_ROUNDS } from '../utils/config.js';
 
 async function getUser(req, reply) {
     try {
@@ -80,6 +81,8 @@ async function modifyInfo(req, reply) {
             await sharp(buffer).jpeg().toFile(filePath);
             req.body.picture = "http://localhost:8080/images/" + fileName;
         }
+        if (req.body.password)
+            req.body.password = await bcrypt.hash(req.body.password, SALT_ROUNDS)
         await collection.findOneAndUpdate({_id: id}, { $set: req.body });
         reply.status(200).send({message: "change successfull"});
     } catch(e) {
